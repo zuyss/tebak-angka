@@ -6,6 +6,11 @@ LEVEL = {
     "3": ("Sulit", 1, 500, 9),
 }
 
+# Batas panjang teks tebakan. Jauh di atas rentang level mana pun (maks 3 digit),
+# dan jauh di bawah batas konversi integer Python (4300 digit) sehingga tidak
+# pernah menyentuh batas tersebut.
+MAX_TEBAKAN_DIGITS = 10
+
 
 def pilih_level():
     print("\nPilih level:")
@@ -21,9 +26,18 @@ def pilih_level():
 def minta_tebakan(bawah, atas):
     while True:
         teks = input(f"Tebakan kamu ({bawah}-{atas}): ").strip()
-        if not teks.isdigit():
+
+        # isdecimal(), bukan isdigit(): isdigit() juga True untuk '²', '³', '①'
+        # yang ditolak int() dan membuat program crash. Karakter desimal
+        # non-ASCII seperti '٣' atau '４' tetap diterima, sesuai perilaku int().
+        if not teks.isdecimal():
             print("Masukkan angka bulat ya.")
             continue
+
+        if len(teks) > MAX_TEBAKAN_DIGITS:
+            print("Angkanya terlalu panjang.")
+            continue
+
         angka = int(teks)
         if bawah <= angka <= atas:
             return angka
@@ -57,18 +71,25 @@ def main():
     menang = 0
     kalah = 0
 
-    while True:
-        if main_satu_ronde():
-            menang += 1
-        else:
-            kalah += 1
+    try:
+        while True:
+            if main_satu_ronde():
+                menang += 1
+            else:
+                kalah += 1
 
-        print(f"Skor: {menang} menang, {kalah} kalah")
-        lagi = input("Main lagi? (y/n): ").strip().lower()
-        if lagi != "y":
-            print("Makasih udah main!")
-            break
+            print(f"Skor: {menang} menang, {kalah} kalah")
+            lagi = input("Main lagi? (y/n): ").strip().lower()
+            if lagi != "y":
+                print("Makasih udah main!")
+                break
+    except (EOFError, KeyboardInterrupt):
+        # stdin habis (input pipa/otomasi) atau Ctrl+C: keluar rapi,
+        # bukan menampilkan traceback.
+        print("\nSampai jumpa!")
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
