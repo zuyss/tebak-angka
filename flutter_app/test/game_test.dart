@@ -71,11 +71,16 @@ void main() {
     });
   });
 
-  testWidgets('bisa pilih level lalu menebak', (tester) async {
+  Future<void> mainSatuTebakan(WidgetTester tester, Size ukuran) async {
+    tester.view.physicalSize = ukuran;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(const TebakAngkaApp());
     expect(find.text('Pilih level'), findsOneWidget);
+    expect(find.text('Belum ada ronde selesai.'), findsOneWidget);
 
-    await tester.tap(find.text('Mudah'));
+    await tester.tap(find.text('Mulai'));
     await tester.pumpAndSettle();
     expect(find.text('Sisa percobaan: 10 dari 10'), findsOneWidget);
 
@@ -84,7 +89,15 @@ void main() {
     await tester.pumpAndSettle();
 
     // Hasilnya acak (menang atau terlalu besar/kecil), tapi satu tebakan
-    // pasti tercatat di riwayat.
-    expect(find.text('Riwayat'), findsOneWidget);
+    // pasti tercatat di ronde ini.
+    expect(find.text('Tebakan ronde ini'), findsOneWidget);
+  }
+
+  testWidgets('dashboard di layar lebar (laptop)', (tester) async {
+    await mainSatuTebakan(tester, const Size(1400, 1000));
+  });
+
+  testWidgets('dashboard di layar sempit (HP)', (tester) async {
+    await mainSatuTebakan(tester, const Size(400, 900));
   });
 }
