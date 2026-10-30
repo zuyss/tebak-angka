@@ -80,11 +80,13 @@ void main() {
     expect(find.text('Pilih level'), findsOneWidget);
     expect(find.text('Belum ada ronde selesai.'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Mulai'));
     await tester.tap(find.text('Mulai'));
     await tester.pumpAndSettle();
     expect(find.text('Sisa percobaan: 10 dari 10'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), '25');
+    await tester.ensureVisible(find.text('Tebak'));
     await tester.tap(find.text('Tebak'));
     await tester.pumpAndSettle();
 

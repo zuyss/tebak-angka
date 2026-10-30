@@ -235,16 +235,6 @@ class _DashboardState extends State<Dashboard> {
             ],
           ),
         ),
-        KartuKaca(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Text(
-            'Menang $_jumlahMenang  Kalah $_jumlahKalah',
-            style: const TextStyle(
-              color: warnaTeks,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
       ],
     );
   }
