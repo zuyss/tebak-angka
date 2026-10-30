@@ -1,0 +1,64 @@
+name: build-app
+
+# Build app Flutter jadi APK Android dan exe Windows setiap ada perubahan
+# di folder flutter_app. Bisa juga dijalankan manual dari tab Actions.
+on:
+  push:
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/build-app.yml"
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      # Folder platform (android/) dibikin otomatis di sini, jadi repo
+      # cukup berisi kode Dart-nya saja.
+      - run: flutter create --project-name tebak_angka --org com.zuyss --platforms=android .
+      # flutter create ikut bikin test contoh (widget_test.dart) yang
+      # manggil class MyApp, padahal app kita namanya TebakAngkaApp.
+      - run: rm -f test/widget_test.dart
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tebak-angka-android
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter create --project-name tebak_angka --org com.zuyss --platforms=windows .
+      - run: flutter pub get
+      - run: flutter build windows --release
+      # Isi folder Release ini (exe + dll + folder data) harus dibawa
+      # bareng-bareng, exe-nya nggak bisa jalan sendirian.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tebak-angka-windows
+          path: flutter_app/build/windows/x64/runner/Release
+          if-no-files-found: error
