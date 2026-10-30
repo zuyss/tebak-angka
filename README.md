@@ -37,8 +37,25 @@ otomatis lewat GitHub Actions pada Python 3.10 sampai 3.13.
 
 ## Versi App (Android dan Windows)
 
-Folder `flutter_app/` berisi versi app dengan aturan yang sama, dibuat dengan Flutter.
-Logika game ada di `flutter_app/lib/game.dart`, tampilan di `flutter_app/lib/main.dart`.
+Folder `flutter_app/` berisi versi app dengan tampilan light glassmorphism dan dua game:
+
+- **Tebak Angka**, dengan dua mode:
+  - *Panas-Dingin*: petunjuknya suhu (membeku sampai membara) sesuai jarak tebakan
+    ke angka rahasia, plus keterangan makin dekat atau makin jauh dari tebakan sebelumnya.
+  - *Detektif*: tiap tebakan salah membuka satu petunjuk sifat angka (genap/ganjil,
+    kelipatan, prima, jumlah digit, rentang), dari yang samar ke yang spesifik.
+- **Wordle** bahasa Indonesia dan Inggris, 4 sampai 7 huruf, 6 kesempatan.
+  Bisa diketik pakai keyboard di layar atau keyboard fisik.
+
+Logika game ada di `flutter_app/lib/game.dart` dan `flutter_app/lib/wordle.dart`
+(tanpa Flutter, gampang dites). Tampilan ada di `halaman_angka.dart`, `halaman_wordle.dart`,
+dan komponen kaca di `kaca.dart`.
+
+Daftar kata Wordle (`flutter_app/assets/kata/`) dibuat dengan `flutter_app/tool/buat_kata.py`
+dari daftar entri KBBI ([damzaky/kumpulan-kata-bahasa-indonesia-KBBI](https://github.com/damzaky/kumpulan-kata-bahasa-indonesia-KBBI)),
+[dwyl/english-words](https://github.com/dwyl/english-words), dan data frekuensi
+[wordfreq](https://github.com/rspeer/wordfreq) (CC BY-SA 4.0), jadi daftar kata ini ikut
+berlisensi CC BY-SA 4.0.
 
 APK Android dan exe Windows di-build otomatis oleh GitHub Actions (workflow `build-app`)
 setiap ada perubahan di `flutter_app/`. Hasilnya bisa diunduh dari tab **Actions**, bagian
