@@ -26,14 +26,23 @@ cd tebak-angka
 python3 tebak_angka.py
 ```
 
+## Pengujian
+
+```bash
+python -m unittest discover -s tests -t . -v
+```
+
+Hanya memakai `unittest` dari stdlib, tanpa dependensi tambahan. Test dijalankan
+otomatis lewat GitHub Actions pada Python 3.10 sampai 3.13.
+
 ## Catatan
 
 Versi awal dibuat dengan bantuan AI; perbaikan dan fitur selanjutnya dikerjakan sendiri.
 
 ## Rencana Pengembangan
 
-- [ ] Tangani input angka non-ASCII tanpa crash
-- [ ] Keluar dengan rapi saat Ctrl+C
+- [x] Tangani input angka non-ASCII tanpa crash
+- [x] Keluar dengan rapi saat Ctrl+C
 - [ ] Simpan high score ke file
 - [ ] Mode kebalikan: komputer yang menebak
 
