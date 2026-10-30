@@ -1,13 +1,16 @@
 // Komponen tampilan kaca putih bening: latar netral yang bergerak pelan,
 // kartu kaca dengan garis tepi putih tajam, dan aksen hitam pekat.
 //
-// Soal performa: kartu sengaja TIDAK memakai BackdropFilter (blur sungguhan).
-// Latarnya cuma gradasi lembut, jadi hasil blur-nya hampir sama dengan
-// aslinya, padahal blur di atas latar yang bergerak berarti semua kartu
-// dihitung ulang setiap frame. Latar digambar oleh satu CustomPainter yang
-// hanya me-repaint dirinya sendiri; kartu punya layer sendiri
-// (RepaintBoundary), jadi nggak ikut digambar ulang.
+// Soal performa (penting): di Windows, Flutter 3.47 memakai renderer
+// Impeller, yang TIDAK punya raster cache. Selama latar bergerak, seluruh
+// layar digambar ulang dari nol setiap frame. Karena itu:
+// - nggak ada BackdropFilter (blur sungguhan) di kartu,
+// - nggak ada BoxShadow dengan blurRadius (tiap bayangan = satu blur
+//   Gaussian per frame); kedalaman dibuat dari garis tepi saja,
+// - latar diperbarui 30x per detik, bukan 60x: geraknya sangat pelan,
+//   jadi bedanya nggak kelihatan, tapi kerja GPU saat diam turun separuh.
 
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -36,11 +39,21 @@ class LatarBening extends StatefulWidget {
 }
 
 class _LatarBeningState extends State<LatarBening>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _waktu = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 40),
-  );
+    with WidgetsBindingObserver {
+  /// Posisi siklus animasi, 0..1. Painter mendengarkan ini lewat `repaint`.
+  final _waktu = ValueNotifier<double>(0);
+  final _stopwatch = Stopwatch();
+  Timer? _timer;
+  bool _appTerlihat = true;
+
+  static const _siklus = Duration(seconds: 40);
+  static const _jedaFrame = Duration(milliseconds: 33); // ~30 fps
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void didChangeDependencies() {
@@ -54,19 +67,39 @@ class _LatarBeningState extends State<LatarBening>
     _aturAnimasi();
   }
 
-  /// Animasi jalan kecuali dimatikan, atau pengguna menyalakan setting
-  /// "kurangi animasi" di sistem operasinya.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Window di-minimize atau app di-background: berhenti menggambar.
+    _appTerlihat = state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.inactive;
+    _aturAnimasi();
+  }
+
+  /// Animasi jalan kecuali dimatikan, app tersembunyi, atau pengguna
+  /// menyalakan setting "kurangi animasi" di sistem operasinya.
   void _aturAnimasi() {
-    final gerak = widget.bergerak && !MediaQuery.disableAnimationsOf(context);
-    if (gerak && !_waktu.isAnimating) {
-      _waktu.repeat();
-    } else if (!gerak && _waktu.isAnimating) {
-      _waktu.stop();
+    final gerak = widget.bergerak &&
+        _appTerlihat &&
+        !MediaQuery.disableAnimationsOf(context);
+    if (gerak && _timer == null) {
+      _stopwatch.start();
+      _timer = Timer.periodic(_jedaFrame, (_) {
+        // Hitung dari jam, bukan jumlah tick: Timer di Windows nggak
+        // presisi, tapi posisinya tetap halus.
+        final ms = _stopwatch.elapsedMilliseconds % _siklus.inMilliseconds;
+        _waktu.value = ms / _siklus.inMilliseconds;
+      });
+    } else if (!gerak && _timer != null) {
+      _timer!.cancel();
+      _timer = null;
+      _stopwatch.stop();
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _timer?.cancel();
     _waktu.dispose();
     super.dispose();
   }
@@ -103,7 +136,7 @@ class _PelukisLatar extends CustomPainter {
   // tanpa membangun ulang widget apa pun.
   _PelukisLatar(this.waktu) : super(repaint: waktu);
 
-  final Animation<double> waktu;
+  final ValueListenable<double> waktu;
 
   static const _dasar = [Color(0xFFE6EBF1), Color(0xFFF5F6F8), Color(0xFFE2E6EB)];
 
@@ -186,13 +219,6 @@ class KartuKaca extends StatelessWidget {
                   // Lebih buram dari sebelumnya, ganti efek blur.
                   : const [Color(0xA6FFFFFF), Color(0x66FFFFFF)],
             ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x140F172A),
-                blurRadius: 24,
-                offset: Offset(0, 8),
-              ),
-            ],
           ),
           child: child,
         ),
@@ -220,7 +246,7 @@ class _GarisTepi extends CustomPainter {
         end: Alignment.bottomRight,
         colors: gelap
             ? const [Color(0x59FFFFFF), Color(0x0DFFFFFF), Color(0x26FFFFFF)]
-            : const [Color(0xFFFFFFFF), Color(0x40FFFFFF), Color(0xB3FFFFFF)],
+            : const [Color(0xFFFFFFFF), Color(0x40FFFFFF), Color(0x290F172A)],
         stops: const [0, 0.55, 1],
       ).createShader(kotak);
     canvas.drawRRect(

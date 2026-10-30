@@ -454,12 +454,6 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                       shape: BoxShape.circle,
                       color: Colors.white,
                       border: Border.all(color: warna, width: 4),
-                      boxShadow: [
-                        BoxShadow(
-                          color: warna.withAlpha(0x80),
-                          blurRadius: 12,
-                        ),
-                      ],
                     ),
                   ),
                 ),

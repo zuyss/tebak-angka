@@ -473,15 +473,6 @@ class _KotakHuruf extends StatelessWidget {
               : (terisi ? warnaHitam : const Color(0xE6FFFFFF)),
           width: isi == null && terisi ? 2.0 : 1.2,
         ),
-        boxShadow: isi == null
-            ? null
-            : const [
-                BoxShadow(
-                  color: Color(0x1F0F172A),
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
-                ),
-              ],
       ),
       child: Text(
         huruf.toUpperCase(),

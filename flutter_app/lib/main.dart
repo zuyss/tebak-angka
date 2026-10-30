@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'halaman_angka.dart';
 import 'halaman_wordle.dart';
@@ -6,7 +7,7 @@ import 'kaca.dart';
 
 void main() => runApp(const TebakAngkaApp());
 
-class TebakAngkaApp extends StatelessWidget {
+class TebakAngkaApp extends StatefulWidget {
   const TebakAngkaApp({
     super.key,
     this.pemuatKamus = muatKamusDariAset,
@@ -20,12 +21,31 @@ class TebakAngkaApp extends StatelessWidget {
   final bool latarBergerak;
 
   @override
+  State<TebakAngkaApp> createState() => _TebakAngkaAppState();
+}
+
+class _TebakAngkaAppState extends State<TebakAngkaApp> {
+  /// Tekan F3 untuk menampilkan grafik waktu per frame. Grafik atas = GPU
+  /// (raster), bawah = Dart (UI). Batang merah = frame yang telat.
+  bool _grafikPerforma = false;
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Tebak Angka',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: warnaHitam),
-      home: Beranda(pemuatKamus: pemuatKamus, latarBergerak: latarBergerak),
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.f3): () =>
+            setState(() => _grafikPerforma = !_grafikPerforma),
+      },
+      child: MaterialApp(
+        title: 'Tebak Angka',
+        debugShowCheckedModeBanner: false,
+        showPerformanceOverlay: _grafikPerforma,
+        theme: ThemeData(colorSchemeSeed: warnaHitam),
+        home: Beranda(
+          pemuatKamus: widget.pemuatKamus,
+          latarBergerak: widget.latarBergerak,
+        ),
+      ),
     );
   }
 }
@@ -182,13 +202,10 @@ class _MenuSwitch extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Color(0xFFFFFFFF),
                     borderRadius: BorderRadius.all(Radius.circular(999)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0x1F0F172A),
-                        blurRadius: 12,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
+                    // Garis tipis, bukan bayangan blur (lihat catatan di kaca.dart).
+                    border: Border.fromBorderSide(
+                      BorderSide(color: Color(0x1A0F172A)),
+                    ),
                   ),
                 ),
               ),
