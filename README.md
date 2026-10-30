@@ -33,7 +33,7 @@ python -m unittest discover -s tests -t . -v
 ```
 
 Hanya memakai `unittest` dari stdlib, tanpa dependensi tambahan. Test dijalankan
-otomatis lewat GitHub Actions pada Python 3.9 sampai 3.13.
+otomatis lewat GitHub Actions pada Python 3.10 sampai 3.13.
 
 ## Catatan
 
