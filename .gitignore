@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Kode app Flutter (pola lib/ di atas dari template Python)
+!flutter_app/lib/
