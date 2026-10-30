@@ -9,14 +9,20 @@ on:
       - ".github/workflows/build-app.yml"
   workflow_dispatch:
 
+# Versi Flutter di-pin, supaya build nggak tiba-tiba gagal karena rilis
+# stable baru. Naikkan versinya dengan sengaja, bukan otomatis.
+env:
+  FLUTTER_VERSION: "3.47.9"
+
 jobs:
   android:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: flutter_app
+        shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -24,6 +30,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       # Folder platform (android/) dibikin otomatis di sini, jadi repo
       # cukup berisi kode Dart-nya saja.
@@ -31,11 +38,15 @@ jobs:
       # flutter create ikut bikin test contoh (widget_test.dart) yang
       # manggil class MyApp, padahal app kita namanya TebakAngkaApp.
       - run: rm -f test/widget_test.dart
+      # Nama yang tampil di bawah ikon app (bawaannya nama proyek: tebak_angka).
+      - run: |
+          sed -i 's/android:label="tebak_angka"/android:label="Tebak Angka"/' android/app/src/main/AndroidManifest.xml
+          grep -q 'android:label="Tebak Angka"' android/app/src/main/AndroidManifest.xml
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
       - run: flutter build apk --release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: tebak-angka-android
           path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
@@ -46,18 +57,24 @@ jobs:
     defaults:
       run:
         working-directory: flutter_app
+        shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: flutter create --project-name tebak_angka --org com.zuyss --platforms=windows .
+      # Judul jendela (bawaannya nama proyek: tebak_angka).
+      - run: |
+          sed -i 's/L"tebak_angka"/L"Tebak Angka"/' windows/runner/main.cpp
+          grep -q 'L"Tebak Angka"' windows/runner/main.cpp
       - run: flutter pub get
       - run: flutter build windows --release
       # Isi folder Release ini (exe + dll + folder data) harus dibawa
       # bareng-bareng, exe-nya nggak bisa jalan sendirian.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: tebak-angka-windows
           path: flutter_app/build/windows/x64/runner/Release

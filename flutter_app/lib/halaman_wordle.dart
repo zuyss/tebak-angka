@@ -85,6 +85,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
       _memuat = true;
       _pesan = null;
       _ketikan = '';
+      _getar = 0;
     });
     _muatLaluMulai();
   }
@@ -113,7 +114,11 @@ class _HalamanWordleState extends State<HalamanWordle> {
     // Selama memuat, bahasa atau panjang mungkin sudah diganti lagi.
     if (!mounted || kunci != (_bahasa, _panjang)) return;
     setState(() {
-      _game = WordleGame(jawaban: kamus.acakJawaban(_random), kamus: kamus);
+      var jawaban = kamus.acakJawaban(_random);
+      if (jawaban == _game?.jawaban && kamus.jawaban.length > 1) {
+        jawaban = kamus.acakJawaban(_random);
+      }
+      _game = WordleGame(jawaban: jawaban, kamus: kamus);
       _memuat = false;
     });
     if (widget.aktif) _fokus.requestFocus();
@@ -133,18 +138,24 @@ class _HalamanWordleState extends State<HalamanWordle> {
 
   void _ketik(String huruf) {
     final game = _game;
-    if (game == null || game.selesai || _ketikan.length >= game.panjang) return;
+    if (_memuat || game == null || game.selesai) return;
+    if (_ketikan.length >= game.panjang) return;
     setState(() => _ketikan += huruf.toLowerCase());
   }
 
   void _hapus() {
-    if (_ketikan.isEmpty) return;
+    if (_memuat || _ketikan.isEmpty) return;
     setState(() => _ketikan = _ketikan.substring(0, _ketikan.length - 1));
   }
 
   void _kirim() {
     final game = _game;
-    if (game == null || game.selesai) return;
+    if (_memuat || game == null) return;
+    if (game.selesai) {
+      // Permainan sudah selesai: Enter langsung mulai kata baru.
+      _kataBaru();
+      return;
+    }
 
     final error = game.tebak(_ketikan);
     setState(() {
@@ -155,6 +166,9 @@ class _HalamanWordleState extends State<HalamanWordle> {
       }
       _ketikan = '';
       _pesan = null;
+      // Reset, supaya baris berikutnya nggak ikut goyang. Penanda goyang
+      // dibuat ulang dari nol saat ada tebakan yang ditolak lagi.
+      _getar = 0;
       if (game.selesai) {
         _main++;
         if (game.menang) {
@@ -176,7 +190,9 @@ class _HalamanWordleState extends State<HalamanWordle> {
     final kunci = event.logicalKey;
     if (kunci == LogicalKeyboardKey.enter ||
         kunci == LogicalKeyboardKey.numpadEnter) {
-      _kirim();
+      // Enter yang ditahan (KeyRepeatEvent) diabaikan, biar nggak
+      // mengirim tebakan berkali-kali.
+      if (event is KeyDownEvent) _kirim();
       return KeyEventResult.handled;
     }
     if (kunci == LogicalKeyboardKey.backspace) {
@@ -271,7 +287,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
             runSpacing: 12,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              TombolGradasi(
+              TombolUtama(
                 label: 'Kata baru',
                 ikon: Icons.refresh,
                 onPressed: _memuat ? null : _kataBaru,
@@ -419,20 +435,11 @@ class _HalamanWordleState extends State<HalamanWordle> {
   }
 }
 
-Gradient? _gradasiStatus(StatusHuruf status) => switch (status) {
-      StatusHuruf.benar => const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF34D399), Color(0xFF059669)],
-        ),
-      StatusHuruf.ada => const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFCD34D), Color(0xFFF59E0B)],
-        ),
-      StatusHuruf.salah => const LinearGradient(
-          colors: [Color(0xB394A3B8), Color(0xB364748B)],
-        ),
+/// Warna isi untuk huruf yang sudah dinilai; null = belum dinilai (kaca).
+Color? _warnaStatus(StatusHuruf status) => switch (status) {
+      StatusHuruf.benar => warnaHijau,
+      StatusHuruf.ada => warnaKuning,
+      StatusHuruf.salah => warnaAbu,
       StatusHuruf.kosong => null,
     };
 
@@ -449,7 +456,7 @@ class _KotakHuruf extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gradasi = _gradasiStatus(status);
+    final isi = _warnaStatus(status);
     final terisi = huruf.isNotEmpty;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 120),
@@ -457,22 +464,20 @@ class _KotakHuruf extends StatelessWidget {
       height: ukuran,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        gradient: gradasi,
-        color: gradasi == null
-            ? (terisi ? const Color(0xB3FFFFFF) : const Color(0x59FFFFFF))
-            : null,
+        color: isi ??
+            (terisi ? const Color(0xB3FFFFFF) : const Color(0x59FFFFFF)),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: gradasi == null && terisi
-              ? const Color(0xFFA78BFA)
-              : const Color(0xCCFFFFFF),
-          width: gradasi == null && terisi ? 2.0 : 1.2,
+          color: isi != null
+              ? isi
+              : (terisi ? warnaHitam : const Color(0xE6FFFFFF)),
+          width: isi == null && terisi ? 2.0 : 1.2,
         ),
-        boxShadow: gradasi == null
+        boxShadow: isi == null
             ? null
             : const [
                 BoxShadow(
-                  color: Color(0x261E1B4B),
+                  color: Color(0x1F0F172A),
                   blurRadius: 10,
                   offset: Offset(0, 4),
                 ),
@@ -483,7 +488,7 @@ class _KotakHuruf extends StatelessWidget {
         style: TextStyle(
           fontSize: ukuran * 0.45,
           fontWeight: FontWeight.w800,
-          color: gradasi == null ? warnaTeks : Colors.white,
+          color: isi == null ? warnaTeks : Colors.white,
         ),
       ),
     );
@@ -535,8 +540,8 @@ class _TombolKey extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gradasi = _gradasiStatus(status);
-    final warnaIsi = gradasi == null ? warnaTeks : Colors.white;
+    final isi = _warnaStatus(status);
+    final warnaIsi = isi == null ? warnaTeks : Colors.white;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2.5),
@@ -547,9 +552,8 @@ class _TombolKey extends StatelessWidget {
           child: Ink(
             height: 52,
             decoration: BoxDecoration(
-              gradient: gradasi,
-              color: gradasi == null ? const Color(0x99FFFFFF) : null,
-              border: Border.all(color: const Color(0xCCFFFFFF)),
+              color: isi ?? const Color(0x99FFFFFF),
+              border: Border.all(color: isi ?? const Color(0xE6FFFFFF)),
               borderRadius: BorderRadius.circular(10),
             ),
             child: InkWell(

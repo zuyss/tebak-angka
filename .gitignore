@@ -221,3 +221,21 @@ __marimo__/
 
 # Kode app Flutter (pola lib/ di atas dari template Python)
 !flutter_app/lib/
+
+# Flutter (flutter_app/): cache tooling dan file hasil flutter create.
+# Folder platform dibuat ulang oleh CI, jadi nggak perlu di-commit.
+# pubspec.lock sengaja TIDAK di-ignore: untuk app, lockfile di-commit.
+flutter_app/.dart_tool/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/.metadata
+flutter_app/.idea/
+flutter_app/*.iml
+flutter_app/android/
+flutter_app/ios/
+flutter_app/linux/
+flutter_app/macos/
+flutter_app/web/
+flutter_app/windows/
+flutter_app/test/widget_test.dart
+flutter_app/README.md

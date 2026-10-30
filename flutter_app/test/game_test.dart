@@ -127,6 +127,17 @@ void main() {
       expect(game.petunjukTerbuka.length, 2);
     });
 
+    test('setelah semua petunjuk terbuka, nggak ada petunjuk baru', () {
+      final game = TebakAngkaGame.denganRahasia(mudah, 21,
+          mode: Mode.detektif, random: Random(3));
+      // 9 petunjuk total: 1 di awal + 8 dari tebakan salah.
+      for (var tebakan = 1; tebakan <= 8; tebakan++) {
+        expect(game.tebak(tebakan).petunjukBaru, isNotNull);
+      }
+      expect(game.petunjukTerbuka.length, 9);
+      expect(game.tebak(9).petunjukBaru, isNull);
+    });
+
     test('petunjuk selalu benar tentang angka rahasia', () {
       final random = Random(7);
       for (final level in daftarLevel) {
@@ -242,7 +253,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
-      const TebakAngkaApp(pemuatKamus: kamusPalsu, animasiLatar: false),
+      const TebakAngkaApp(pemuatKamus: kamusPalsu, latarBergerak: false),
     );
   }
 
@@ -270,6 +281,20 @@ void main() {
       expect(find.text('Tebakan ronde ini'), findsOneWidget);
     });
 
+    testWidgets('input di luar rentang diblok semua di layar $nama',
+        (tester) async {
+      await aturLayar(tester, ukuran);
+      await ketuk(tester, find.text('Mulai'));
+      await tester.enterText(find.byType(TextField), '99');
+      await ketuk(tester, find.text('Tebak'));
+
+      expect(find.text('Angka harus di antara 1 dan 50.'), findsOneWidget);
+      final kolom = tester.widget<TextField>(find.byType(TextField));
+      expect(kolom.controller!.text, '99');
+      expect(kolom.controller!.selection,
+          const TextSelection(baseOffset: 0, extentOffset: 2));
+    });
+
     testWidgets('mode detektif di layar $nama', (tester) async {
       await aturLayar(tester, ukuran);
       await ketuk(tester, find.text('Detektif'));
@@ -290,15 +315,25 @@ void main() {
 
       await ketik('qwert');
       expect(find.text('Kata tidak ada di kamus.'), findsOneWidget);
+      expect(find.byKey(const ValueKey('getar-1')), findsOneWidget);
       for (var i = 0; i < 5; i++) {
         await ketuk(tester, find.byKey(const ValueKey('tombol-hapus')));
       }
 
       await ketik('makan');
       expect(find.text('Kata tidak ada di kamus.'), findsNothing);
+      // Baris berikutnya nggak boleh ikut goyang.
+      expect(find.byKey(const ValueKey('getar-1')), findsNothing);
 
       await ketik('rumah');
       expect(find.textContaining('Mantap!'), findsOneWidget);
+      expect(find.text('Main 1   Menang 1   Beruntun 1'), findsOneWidget);
+
+      // Enter setelah selesai langsung mulai kata baru.
+      await ketuk(tester, find.byKey(const ValueKey('tombol-enter')));
+      expect(find.textContaining('Mantap!'), findsNothing);
+      // Papan kosong lagi: sel yang sudah dinilai hilang.
+      expect(find.byKey(const ValueKey('sel-0-0')), findsNothing);
       expect(find.text('Main 1   Menang 1   Beruntun 1'), findsOneWidget);
     });
   }

@@ -10,20 +10,22 @@ class TebakAngkaApp extends StatelessWidget {
   const TebakAngkaApp({
     super.key,
     this.pemuatKamus = muatKamusDariAset,
-    this.animasiLatar = true,
+    this.latarBergerak = true,
   });
 
   /// Bisa diganti di test supaya nggak perlu baca file aset.
   final PemuatKamus pemuatKamus;
-  final bool animasiLatar;
+
+  /// Dimatikan di test (animasi tanpa akhir bikin pumpAndSettle macet).
+  final bool latarBergerak;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Tebak Angka',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: warnaUngu),
-      home: Beranda(pemuatKamus: pemuatKamus, animasiLatar: animasiLatar),
+      theme: ThemeData(colorSchemeSeed: warnaHitam),
+      home: Beranda(pemuatKamus: pemuatKamus, latarBergerak: latarBergerak),
     );
   }
 }
@@ -32,11 +34,11 @@ class Beranda extends StatefulWidget {
   const Beranda({
     super.key,
     required this.pemuatKamus,
-    required this.animasiLatar,
+    required this.latarBergerak,
   });
 
   final PemuatKamus pemuatKamus;
-  final bool animasiLatar;
+  final bool latarBergerak;
 
   @override
   State<Beranda> createState() => _BerandaState();
@@ -64,8 +66,8 @@ class _BerandaState extends State<Beranda> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: LatarAurora(
-        bergerak: widget.animasiLatar,
+      body: LatarBening(
+        bergerak: widget.latarBergerak,
         child: SafeArea(
           child: Column(
             children: [
@@ -178,13 +180,13 @@ class _MenuSwitch extends StatelessWidget {
                 heightFactor: 1,
                 child: const DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: gradasiUtama,
+                    color: Color(0xFFFFFFFF),
                     borderRadius: BorderRadius.all(Radius.circular(999)),
                     boxShadow: [
                       BoxShadow(
-                        color: Color(0x557C3AED),
-                        blurRadius: 14,
-                        offset: Offset(0, 6),
+                        color: Color(0x1F0F172A),
+                        blurRadius: 12,
+                        offset: Offset(0, 4),
                       ),
                     ],
                   ),
@@ -202,8 +204,9 @@ class _MenuSwitch extends StatelessWidget {
                         child: AnimatedDefaultTextStyle(
                           duration: const Duration(milliseconds: 250),
                           style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: i == indeks ? Colors.white : warnaTeks,
+                            fontWeight:
+                                i == indeks ? FontWeight.w800 : FontWeight.w600,
+                            color: i == indeks ? warnaTeks : warnaTeksRedup,
                           ),
                           child: Text(pilihan[i]),
                         ),

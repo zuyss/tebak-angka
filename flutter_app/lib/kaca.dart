@@ -1,30 +1,30 @@
-// Komponen tampilan gaya light glassmorphism: latar aurora warna-warni yang
-// bergerak pelan, kartu kaca berkilau dengan border gradasi, dan efek
-// kartu naik saat kursor lewat.
+// Komponen tampilan kaca putih bening: latar netral yang bergerak pelan,
+// kartu kaca dengan garis tepi putih tajam, dan aksen hitam pekat.
+//
+// Soal performa: kartu sengaja TIDAK memakai BackdropFilter (blur sungguhan).
+// Latarnya cuma gradasi lembut, jadi hasil blur-nya hampir sama dengan
+// aslinya, padahal blur di atas latar yang bergerak berarti semua kartu
+// dihitung ulang setiap frame. Latar digambar oleh satu CustomPainter yang
+// hanya me-repaint dirinya sendiri; kartu punya layer sendiri
+// (RepaintBoundary), jadi nggak ikut digambar ulang.
 
 import 'dart:math';
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
-const warnaTeks = Color(0xFF1E1B4B);
-const warnaTeksRedup = Color(0xA61E1B4B);
-const warnaUngu = Color(0xFF7C3AED);
-const warnaPink = Color(0xFFEC4899);
-const warnaHijau = Color(0xFF10B981);
-const warnaKuning = Color(0xFFF59E0B);
+const warnaTeks = Color(0xFF0F172A);
+const warnaTeksRedup = Color(0x990F172A);
+const warnaHitam = Color(0xFF0F172A);
+const warnaGaris = Color(0x1F0F172A);
+const warnaHijau = Color(0xFF16A34A);
+const warnaKuning = Color(0xFFD97706);
+const warnaAbu = Color(0xFF94A3B8);
 
-const gradasiUtama = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [warnaUngu, warnaPink],
-);
-
-/// Latar aurora: dasar terang + gumpalan warna yang melayang pelan.
-/// Gumpalan dibuat dengan RadialGradient (tepinya sudah lembut), bukan
-/// blur filter, supaya tetap ringan walau dianimasikan di HP.
-class LatarAurora extends StatefulWidget {
-  const LatarAurora({super.key, required this.child, this.bergerak = true});
+/// Latar netral dengan bayangan-bayangan lembut yang melayang pelan.
+/// Bayangan ini yang bikin tepi kaca kelihatan; di atas latar putih polos,
+/// kaca putih nggak terlihat.
+class LatarBening extends StatefulWidget {
+  const LatarBening({super.key, required this.child, this.bergerak = true});
 
   final Widget child;
 
@@ -32,20 +32,37 @@ class LatarAurora extends StatefulWidget {
   final bool bergerak;
 
   @override
-  State<LatarAurora> createState() => _LatarAuroraState();
+  State<LatarBening> createState() => _LatarBeningState();
 }
 
-class _LatarAuroraState extends State<LatarAurora>
+class _LatarBeningState extends State<LatarBening>
     with SingleTickerProviderStateMixin {
   late final AnimationController _waktu = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 24),
+    duration: const Duration(seconds: 40),
   );
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.bergerak) _waktu.repeat();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _aturAnimasi();
+  }
+
+  @override
+  void didUpdateWidget(LatarBening lama) {
+    super.didUpdateWidget(lama);
+    _aturAnimasi();
+  }
+
+  /// Animasi jalan kecuali dimatikan, atau pengguna menyalakan setting
+  /// "kurangi animasi" di sistem operasinya.
+  void _aturAnimasi() {
+    final gerak = widget.bergerak && !MediaQuery.disableAnimationsOf(context);
+    if (gerak && !_waktu.isAnimating) {
+      _waktu.repeat();
+    } else if (!gerak && _waktu.isAnimating) {
+      _waktu.stop();
+    }
   }
 
   @override
@@ -58,148 +75,168 @@ class _LatarAuroraState extends State<LatarAurora>
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        const Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFF5F3FF), Color(0xFFFDF2F8), Color(0xFFECFEFF)],
-              ),
-            ),
-          ),
-        ),
         Positioned.fill(
-          child: AnimatedBuilder(
-            animation: _waktu,
-            builder: (context, _) {
-              final t = _waktu.value * 2 * pi;
-              return Stack(
-                children: [
-                  _gumpalan(Alignment(-0.9 + 0.25 * sin(t), -0.8 + 0.2 * cos(t)),
-                      const Color(0xFFA78BFA), 1.1),
-                  _gumpalan(Alignment(0.9 + 0.2 * cos(t), -0.6 + 0.25 * sin(t)),
-                      const Color(0xFFF472B6), 0.95),
-                  _gumpalan(Alignment(0.7 + 0.25 * sin(t + 2), 0.9 + 0.15 * cos(t)),
-                      const Color(0xFF67E8F9), 1.0),
-                  _gumpalan(Alignment(-0.7 + 0.2 * cos(t + 1), 0.8 + 0.2 * sin(t + 1)),
-                      const Color(0xFFFDBA74), 0.85),
-                ],
-              );
-            },
+          child: RepaintBoundary(
+            child: CustomPaint(painter: _PelukisLatar(_waktu)),
           ),
         ),
         Positioned.fill(child: widget.child),
       ],
     );
   }
-
-  Widget _gumpalan(Alignment posisi, Color warna, double skala) {
-    return Align(
-      alignment: posisi,
-      child: FractionallySizedBox(
-        widthFactor: 0.75 * skala,
-        heightFactor: 0.75 * skala,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              colors: [warna.withAlpha(0xB3), warna.withAlpha(0)],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
-/// Kartu kaca. Blurnya sengaja tipis biar latar aurora tetap kelihatan
-/// warnanya, plus kilau miring dan border gradasi biar kesan kacanya kuat.
+/// Satu bayangan: posisi dasar, seberapa jauh dia melayang, warna, ukuran,
+/// dan fase (biar nggak bergerak serempak).
+class _Bayangan {
+  const _Bayangan(this.x, this.y, this.ayunX, this.ayunY, this.warna,
+      this.ukuran, this.fase);
+
+  final double x, y, ayunX, ayunY;
+  final Color warna;
+  final double ukuran;
+  final double fase;
+}
+
+class _PelukisLatar extends CustomPainter {
+  // repaint: waktu -> cuma painter ini yang digambar ulang tiap frame,
+  // tanpa membangun ulang widget apa pun.
+  _PelukisLatar(this.waktu) : super(repaint: waktu);
+
+  final Animation<double> waktu;
+
+  static const _dasar = [Color(0xFFE6EBF1), Color(0xFFF5F6F8), Color(0xFFE2E6EB)];
+
+  static const _bayangan = [
+    _Bayangan(0.05, 0.05, 0.10, 0.08, Color(0xFFB3C1D1), 0.85, 0.0),
+    _Bayangan(0.95, 0.30, 0.08, 0.12, Color(0xFFD9CEC1), 0.70, 1.7),
+    _Bayangan(0.60, 1.00, 0.14, 0.06, Color(0xFFBCC8D6), 0.95, 3.4),
+    _Bayangan(0.00, 0.85, 0.07, 0.10, Color(0xFFE0D6CB), 0.60, 4.6),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final layar = Offset.zero & size;
+    canvas.drawRect(
+      layar,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: _dasar,
+        ).createShader(layar),
+    );
+
+    final t = waktu.value * 2 * pi;
+    final sisiPanjang = max(size.width, size.height);
+    for (final b in _bayangan) {
+      final pusat = Offset(
+        size.width * (b.x + b.ayunX * sin(t + b.fase)),
+        size.height * (b.y + b.ayunY * cos(t + b.fase)),
+      );
+      final jari = sisiPanjang * 0.45 * b.ukuran;
+      canvas.drawCircle(
+        pusat,
+        jari,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [b.warna, b.warna.withAlpha(0)],
+          ).createShader(Rect.fromCircle(center: pusat, radius: jari)),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PelukisLatar lama) => lama.waktu != waktu;
+}
+
+/// Kartu kaca putih bening. Dengan [gelap], kartu jadi kaca hitam
+/// (dipakai untuk kartu yang mau ditonjolkan).
 class KartuKaca extends StatelessWidget {
   const KartuKaca({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(20),
-    this.gradient,
+    this.gelap = false,
     this.radius = 24,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
-
-  /// Kalau diisi, kartu jadi kartu aksen berwarna (bukan kaca bening).
-  final Gradient? gradient;
+  final bool gelap;
   final double radius;
 
   @override
   Widget build(BuildContext context) {
     final sudut = BorderRadius.circular(radius);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: sudut,
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x146D28D9),
-            blurRadius: 30,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: sudut,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: CustomPaint(
-            foregroundPainter: _BorderGradasi(radius),
-            child: Container(
-              padding: padding,
-              decoration: BoxDecoration(
-                borderRadius: sudut,
-                gradient: gradient ??
-                    const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      // Kilau: atas-kiri lebih putih, bawah-kanan lebih bening.
-                      colors: [Color(0x99FFFFFF), Color(0x40FFFFFF)],
-                    ),
-              ),
-              child: child,
+    // RepaintBoundary: kartu jadi layer sendiri, jadi saat latar di
+    // belakangnya bergerak, isi kartu nggak ikut digambar ulang.
+    return RepaintBoundary(
+      child: CustomPaint(
+        foregroundPainter: _GarisTepi(radius, gelap),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            borderRadius: sudut,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: gelap
+                  ? const [Color(0xF00F172A), Color(0xE61E293B)]
+                  // Lebih buram dari sebelumnya, ganti efek blur.
+                  : const [Color(0xA6FFFFFF), Color(0x66FFFFFF)],
             ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x140F172A),
+                blurRadius: 24,
+                offset: Offset(0, 8),
+              ),
+            ],
           ),
+          child: child,
         ),
       ),
     );
   }
 }
 
-class _BorderGradasi extends CustomPainter {
-  _BorderGradasi(this.radius);
+/// Garis tepi kaca: putih tajam di pojok kiri atas, memudar ke kanan bawah,
+/// seperti pantulan cahaya di tepi kaca.
+class _GarisTepi extends CustomPainter {
+  _GarisTepi(this.radius, this.gelap);
 
   final double radius;
+  final bool gelap;
 
   @override
   void paint(Canvas canvas, Size size) {
     final kotak = Offset.zero & size;
     final pena = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..shader = const LinearGradient(
+      ..strokeWidth = 1.2
+      ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xF2FFFFFF), Color(0x26FFFFFF), Color(0x80FFFFFF)],
-        stops: [0, 0.55, 1],
+        colors: gelap
+            ? const [Color(0x59FFFFFF), Color(0x0DFFFFFF), Color(0x26FFFFFF)]
+            : const [Color(0xFFFFFFFF), Color(0x40FFFFFF), Color(0xB3FFFFFF)],
+        stops: const [0, 0.55, 1],
       ).createShader(kotak);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(kotak.deflate(0.7), Radius.circular(radius)),
+      RRect.fromRectAndRadius(kotak.deflate(0.6), Radius.circular(radius)),
       pena,
     );
   }
 
   @override
-  bool shouldRepaint(_BorderGradasi lama) => lama.radius != radius;
+  bool shouldRepaint(_GarisTepi lama) =>
+      lama.radius != radius || lama.gelap != gelap;
 }
 
-/// Versi Flutter dari `whileHover={{ y: -5 }}` di framer-motion:
-/// anak widget naik 5 piksel dan sedikit membesar saat kursor di atasnya.
+/// Versi Flutter dari `whileHover={{ y: -5 }}` di framer-motion.
+/// Dipakai di kartu kecil saja: menggeser kartu besar berarti nge-blur
+/// ulang area yang lebar selama animasi.
 class AngkatSaatHover extends StatefulWidget {
   const AngkatSaatHover({super.key, required this.child});
 
@@ -218,18 +255,18 @@ class _AngkatSaatHoverState extends State<AngkatSaatHover> {
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        transform: Matrix4.translationValues(0, _hover ? -5 : 0, 0),
+        transform: Matrix4.translationValues(0, _hover ? -4 : 0, 0),
         child: widget.child,
       ),
     );
   }
 }
 
-/// Tombol pill dengan gradasi ungu-pink.
-class TombolGradasi extends StatelessWidget {
-  const TombolGradasi({
+/// Tombol utama: pill hitam pekat.
+class TombolUtama extends StatelessWidget {
+  const TombolUtama({
     super.key,
     required this.label,
     required this.onPressed,
@@ -242,42 +279,34 @@ class TombolGradasi extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: gradasiUtama,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x557C3AED),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(999),
-          onTap: onPressed,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (ikon != null) ...[
-                  Icon(ikon, color: Colors.white, size: 18),
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+    final aktif = onPressed != null;
+    return Material(
+      color: aktif ? warnaHitam : warnaAbu,
+      shape: const StadiumBorder(),
+      elevation: 0,
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onPressed,
+        hoverColor: const Color(0x1FFFFFFF),
+        splashColor: const Color(0x33FFFFFF),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (ikon != null) ...[
+                Icon(ikon, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
               ],
-            ),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -285,7 +314,8 @@ class TombolGradasi extends StatelessWidget {
   }
 }
 
-/// Pilihan berbentuk pill kaca (dipakai buat mode, level, bahasa, panjang kata).
+/// Pilihan berbentuk pill (mode, level, bahasa, panjang kata).
+/// Yang dipilih hitam, yang lain kaca bening.
 class PilihanKaca extends StatelessWidget {
   const PilihanKaca({
     super.key,
@@ -300,24 +330,26 @@ class PilihanKaca extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          gradient: dipilih ? gradasiUtama : null,
-          color: dipilih ? null : const Color(0x80FFFFFF),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: dipilih ? const Color(0x00FFFFFF) : const Color(0xCCFFFFFF),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: dipilih ? warnaHitam : const Color(0x8CFFFFFF),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: dipilih ? warnaHitam : const Color(0xFFFFFFFF),
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: dipilih ? Colors.white : warnaTeks,
-            fontWeight: FontWeight.w600,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: dipilih ? Colors.white : warnaTeks,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),
