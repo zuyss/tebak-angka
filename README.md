@@ -35,7 +35,9 @@ python -m unittest discover -s tests -t . -v
 Hanya memakai `unittest` dari stdlib, tanpa dependensi tambahan. Test dijalankan
 otomatis lewat GitHub Actions pada Python 3.10 sampai 3.13.
 
-## Versi App (Android dan Windows)
+## Versi App (Web, Android, dan Windows)
+
+**Main langsung di browser:** https://zuyss.github.io/tebak-angka/
 
 Folder `flutter_app/` berisi versi app dengan tampilan light glassmorphism dan dua game:
 

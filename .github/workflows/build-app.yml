@@ -1,7 +1,8 @@
 name: build-app
 
-# Build app Flutter jadi APK Android dan exe Windows setiap ada perubahan
-# di folder flutter_app. Bisa juga dijalankan manual dari tab Actions.
+# Build app Flutter jadi APK Android, exe Windows, dan versi web setiap ada
+# perubahan di folder flutter_app. Versi web langsung di-deploy ke GitHub
+# Pages. Bisa juga dijalankan manual dari tab Actions.
 on:
   push:
     paths:
@@ -79,3 +80,48 @@ jobs:
           name: tebak-angka-windows
           path: flutter_app/build/windows/x64/runner/Release
           if-no-files-found: error
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter create --project-name tebak_angka --org com.zuyss --platforms=web .
+      # Judul tab browser dan nama saat dipasang ke layar utama HP.
+      - run: |
+          sed -i 's/<title>tebak_angka</<title>Tebak Angka</; s/content="tebak_angka"/content="Tebak Angka"/' web/index.html
+          sed -i 's/"name": "tebak_angka"/"name": "Tebak Angka"/; s/"short_name": "tebak_angka"/"short_name": "Tebak Angka"/' web/manifest.json
+          grep -q '<title>Tebak Angka</title>' web/index.html
+      - run: flutter pub get
+      # GitHub Pages menaruh situs di /<nama-repo>/, bukan di root domain.
+      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: flutter_app/build/web
+
+  deploy-web:
+    # Hanya deploy dari branch main.
+    if: github.ref == 'refs/heads/main'
+    needs: web
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    # Kalau ada dua push beruntun, deploy yang lama dibatalkan.
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5
