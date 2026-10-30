@@ -468,9 +468,7 @@ class _KotakHuruf extends StatelessWidget {
             (terisi ? const Color(0xB3FFFFFF) : const Color(0x59FFFFFF)),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isi != null
-              ? isi
-              : (terisi ? warnaHitam : const Color(0xE6FFFFFF)),
+          color: isi ?? (terisi ? warnaHitam : const Color(0xE6FFFFFF)),
           width: isi == null && terisi ? 2.0 : 1.2,
         ),
       ),
