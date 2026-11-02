@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import 'harian.dart';
 import 'kaca.dart';
+import 'pencapaian.dart';
 import 'pengaturan.dart';
 import 'simpanan.dart';
 import 'wordle.dart';
@@ -354,7 +355,20 @@ class _HalamanWordleState extends State<HalamanWordle> {
         }
       }
     });
-    if (game.selesai) _simpanStatistik();
+    if (game.selesai) {
+      _simpanStatistik();
+      if (game.menang) {
+        bukaLencana(context, [
+          'wordle_pertama',
+          if (game.tebakan.length <= 2) 'wordle_cepat',
+          if (game.modeSulit) 'wordle_sulit',
+          if (game.panjang == 7) 'wordle_7',
+          if (_beruntun >= 5) 'wordle_beruntun',
+        ]);
+      }
+      final tanggal = _harianTanggal;
+      if (_harian && tanggal != null) catatHarianSelesai(context, tanggal);
+    }
   }
 
   KeyEventResult _tombolFisik(FocusNode node, KeyEvent event) {

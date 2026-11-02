@@ -6,6 +6,7 @@ import 'game.dart';
 import 'harian.dart';
 import 'kaca.dart';
 import 'komputer.dart';
+import 'pencapaian.dart';
 import 'pengaturan.dart';
 import 'simpanan.dart';
 
@@ -179,6 +180,9 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       }
     });
     if (k.selesai) _simpan();
+    if (k.status == StatusKomputer.bertentangan) {
+      bukaLencana(context, ['komputer_curang']);
+    }
   }
 
   // ---------- duel 2 pemain ----------
@@ -463,6 +467,9 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         }
       });
       if (!game.selesai) _fokus.requestFocus();
+      if (duel.tahap == TahapDuel.selesai) {
+        bukaLencana(context, ['duel_pertama']);
+      }
       return;
     }
 
@@ -508,9 +515,22 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         }
       }
     });
-    if (game.selesai) _simpan();
-
-    if (!game.selesai) _fokus.requestFocus();
+    if (game.selesai) {
+      _simpan();
+      final sulit = game.level == daftarLevel.last;
+      if (game.menang) {
+        bukaLencana(context, [
+          'menang_pertama',
+          if (game.percobaan == 1) 'sekali_tebak',
+          if (sulit && game.mode == Mode.panasDingin) 'panas_sulit',
+          if (sulit && game.mode == Mode.detektif) 'detektif_sulit',
+        ]);
+      }
+      final tanggal = _harianTanggal;
+      if (_gameHarian && tanggal != null) catatHarianSelesai(context, tanggal);
+    } else {
+      _fokus.requestFocus();
+    }
   }
 
   // ---------- tampilan ----------

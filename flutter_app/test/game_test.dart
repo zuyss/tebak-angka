@@ -13,6 +13,7 @@ import 'package:tebak_angka/harian.dart';
 import 'package:tebak_angka/kaca.dart';
 import 'package:tebak_angka/komputer.dart';
 import 'package:tebak_angka/main.dart';
+import 'package:tebak_angka/pencapaian.dart';
 import 'package:tebak_angka/pengaturan.dart';
 import 'package:tebak_angka/simpanan.dart';
 import 'package:tebak_angka/wordle.dart';
@@ -324,6 +325,48 @@ void main() {
           throwsStateError);
       duel.rahasiaSiap();
       expect(duel.rahasiaSiap, throwsStateError);
+    });
+  });
+
+  group('pencapaian', () {
+    test('lencana cuma terbuka sekali dan tersimpan', () {
+      final simpanan = SimpananMemori();
+      final p = Pencapaian(simpanan: simpanan);
+      expect(p.buka('menang_pertama')?.judul, 'Langkah pertama');
+      expect(p.buka('menang_pertama'), isNull);
+      expect(p.buka('nggak_ada'), isNull);
+      expect(p.jumlahTerbuka, 1);
+      expect(Pencapaian(simpanan: simpanan).terbuka('menang_pertama'), isTrue);
+    });
+
+    test('id lencana unik', () {
+      final id = daftarLencana.map((l) => l.id).toList();
+      expect(id.toSet().length, id.length);
+    });
+
+    test('streak harian: berturut-turut, hari yang sama, dan bolong', () {
+      final p = Pencapaian(simpanan: SimpananMemori());
+      expect(p.catatHarian('2026-11-01').map((l) => l.id), ['harian_pertama']);
+      expect(p.catatHarian('2026-11-01'), isEmpty); // hari sama: nggak dobel
+      p.catatHarian('2026-11-02');
+      expect(p.catatHarian('2026-11-03').map((l) => l.id), ['harian_3']);
+      expect(p.harianBeruntun, 3);
+      p.catatHarian('2026-11-05'); // bolong sehari
+      expect(p.harianBeruntun, 1);
+      // Lewat akhir bulan tetap dihitung berturut-turut.
+      for (final t in ['2026-11-30', '2026-12-01', '2026-12-02', '2026-12-03',
+          '2026-12-04', '2026-12-05']) {
+        p.catatHarian(t);
+      }
+      expect(p.harianBeruntun, 6);
+      expect(p.catatHarian('2026-12-06').map((l) => l.id), ['harian_7']);
+    });
+
+    test('hapus statistik nggak menghapus pencapaian', () {
+      final simpanan = SimpananMemori();
+      Pencapaian(simpanan: simpanan).buka('duel_pertama');
+      Pengaturan(simpanan: simpanan).hapusStatistik();
+      expect(Pencapaian(simpanan: simpanan).terbuka('duel_pertama'), isTrue);
     });
   });
 
@@ -839,6 +882,7 @@ void main() {
       await isi('29', 'Tebak');
       await isi('30', 'Tebak');
       expect(find.text('Pemain 2 menang!'), findsOneWidget);
+      expect(find.text('Pencapaian terbuka: Lawan tanding'), findsOneWidget);
       expect(find.text('Pemain 1: 2 percobaan   Pemain 2: 1 percobaan'),
           findsOneWidget);
       // Duel nggak masuk statistik solo.
@@ -915,6 +959,15 @@ void main() {
 
       await ketuk(tester, find.text('Komputer menebak'));
       expect(find.text('Skor komputer: 0 menang, 0 kalah'), findsOneWidget);
+    });
+
+    testWidgets('koleksi pencapaian di layar $nama', (tester) async {
+      final simpanan = SimpananMemori();
+      Pencapaian(simpanan: simpanan).buka('hacker_pertama');
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      await ketuk(tester, find.byTooltip('Pencapaian'));
+      expect(find.text('Pencapaian (1/${daftarLencana.length})'), findsOneWidget);
+      expect(find.text('Akses diterima'), findsOneWidget);
     });
 
     testWidgets('wordle di layar $nama', (tester) async {

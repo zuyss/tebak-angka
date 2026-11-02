@@ -6,6 +6,7 @@ import 'halaman_angka.dart';
 import 'halaman_hacker.dart';
 import 'halaman_wordle.dart';
 import 'kaca.dart';
+import 'pencapaian.dart';
 import 'pengaturan.dart';
 import 'simpanan.dart';
 
@@ -53,10 +54,12 @@ class _TebakAngkaAppState extends State<TebakAngkaApp> {
   bool _grafikPerforma = false;
 
   late final Pengaturan _pengaturan = Pengaturan(simpanan: widget.simpanan);
+  late final Pencapaian _pencapaian = Pencapaian(simpanan: widget.simpanan);
 
   @override
   void dispose() {
     _pengaturan.dispose();
+    _pencapaian.dispose();
     super.dispose();
   }
 
@@ -64,21 +67,24 @@ class _TebakAngkaAppState extends State<TebakAngkaApp> {
   Widget build(BuildContext context) {
     return PengaturanScope(
       pengaturan: _pengaturan,
-      child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.f3): () =>
-              setState(() => _grafikPerforma = !_grafikPerforma),
-        },
-        child: MaterialApp(
-          title: 'Tebak Angka',
-          debugShowCheckedModeBanner: false,
-          showPerformanceOverlay: _grafikPerforma,
-          theme: ThemeData(colorSchemeSeed: warnaHitam),
-          home: Beranda(
-            pemuatKamus: widget.pemuatKamus,
-            latarBergerak: widget.latarBergerak,
-            simpanan: widget.simpanan,
-            jam: widget.jam,
+      child: PencapaianScope(
+        pencapaian: _pencapaian,
+        child: CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.f3): () =>
+                setState(() => _grafikPerforma = !_grafikPerforma),
+          },
+          child: MaterialApp(
+            title: 'Tebak Angka',
+            debugShowCheckedModeBanner: false,
+            showPerformanceOverlay: _grafikPerforma,
+            theme: ThemeData(colorSchemeSeed: warnaHitam),
+            home: Beranda(
+              pemuatKamus: widget.pemuatKamus,
+              latarBergerak: widget.latarBergerak,
+              simpanan: widget.simpanan,
+              jam: widget.jam,
+            ),
           ),
         ),
       ),
@@ -225,10 +231,23 @@ class _BerandaState extends State<Beranda> {
       onGanti: _pindah,
     );
 
-    final tombolPengaturan = IconButton(
-      tooltip: 'Pengaturan',
-      icon: const Icon(Icons.settings_outlined, color: warnaTeks),
-      onPressed: _bukaPengaturan,
+    final tombolPengaturan = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Pencapaian',
+          icon: const Icon(Icons.emoji_events_outlined, color: warnaTeks),
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (_) => const _DialogPencapaian(),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Pengaturan',
+          icon: const Icon(Icons.settings_outlined, color: warnaTeks),
+          onPressed: _bukaPengaturan,
+        ),
+      ],
     );
 
     return LayoutBuilder(
@@ -397,6 +416,69 @@ class _DialogPengaturan extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
+          child: const Text('Tutup'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Koleksi lencana: yang sudah terbuka berwarna, yang belum dikunci.
+class _DialogPencapaian extends StatelessWidget {
+  const _DialogPencapaian();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = PencapaianScope.dari(context);
+    final jumlah = p?.jumlahTerbuka ?? 0;
+    return AlertDialog(
+      backgroundColor: const Color(0xFFF8FAFC),
+      title: Text('Pencapaian ($jumlah/${daftarLencana.length})'),
+      contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
+      content: SizedBox(
+        width: 420,
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            if ((p?.harianBeruntun ?? 0) > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  'Tantangan harian beruntun: ${p!.harianBeruntun} hari',
+                  style: const TextStyle(color: warnaTeksRedup),
+                ),
+              ),
+            for (final l in daftarLencana)
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: (p?.terbuka(l.id) ?? false)
+                      ? warnaHitam
+                      : const Color(0x1A0F172A),
+                  child: Icon(
+                    (p?.terbuka(l.id) ?? false) ? l.ikon : Icons.lock_outline,
+                    color: (p?.terbuka(l.id) ?? false)
+                        ? Colors.white
+                        : warnaTeksRedup,
+                    size: 20,
+                  ),
+                ),
+                title: Text(
+                  l.judul,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: (p?.terbuka(l.id) ?? false)
+                        ? warnaTeks
+                        : warnaTeksRedup,
+                  ),
+                ),
+                subtitle: Text(l.syarat),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
           child: const Text('Tutup'),
         ),
       ],

@@ -96,6 +96,10 @@ Statistik (menang/kalah, rekor per mode dan level, riwayat, streak Wordle) tersi
 di perangkat dan tetap ada setelah app ditutup. Di versi web, statistik tersimpan di
 browser yang dipakai.
 
+Ada **16 pencapaian** (ikon piala) yang terbuka saat kamu melakukan sesuatu, misalnya
+menang dalam 1 tebakan, menyelesaikan tantangan harian 7 hari berturut-turut, atau
+membobol PIN tingkat Elite. Pencapaian nggak ikut terhapus saat statistik dihapus.
+
 Lewat tombol **Pengaturan** (ikon roda gigi) kamu bisa mematikan animasi latar kalau app
 terasa patah-patah, mematikan getar, atau menghapus semua statistik.
 
@@ -139,6 +143,9 @@ flutter build windows --release  # hasil: build/windows/x64/runner/Release/
 - [x] App: pengaturan (animasi latar, getar, hapus statistik)
 - [x] App: duel 2 pemain untuk tebak angka dan Mode Hacker
 - [x] App: Wordle mode sulit
+- [x] App: pencapaian (badge)
+- [ ] App: mode gelap
+- [ ] App: tampilan bahasa Inggris
 
 ## Lisensi
 

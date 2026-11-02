@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'duel.dart';
 import 'hacker.dart';
 import 'kaca.dart';
+import 'pencapaian.dart';
 import 'pengaturan.dart';
 import 'simpanan.dart';
 
@@ -187,6 +188,9 @@ class _HalamanHackerState extends State<HalamanHacker> {
         }
       });
       if (!game.selesai) _fokus.requestFocus();
+      if (duel.tahap == TahapDuel.selesai) {
+        bukaLencana(context, ['duel_pertama']);
+      }
       return;
     }
 
@@ -205,6 +209,12 @@ class _HalamanHackerState extends State<HalamanHacker> {
     });
     if (game.selesai) {
       _simpan();
+      if (game.menang) {
+        bukaLencana(context, [
+          'hacker_pertama',
+          if (_tingkat == daftarTingkatHacker.last) 'hacker_elite',
+        ]);
+      }
     } else {
       _fokus.requestFocus();
     }
