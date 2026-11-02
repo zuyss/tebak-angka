@@ -437,43 +437,47 @@ class _DialogPencapaian extends StatelessWidget {
       contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
       content: SizedBox(
         width: 420,
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            if ((p?.harianBeruntun ?? 0) > 0)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Text(
-                  'Tantangan harian beruntun: ${p!.harianBeruntun} hari',
-                  style: const TextStyle(color: warnaTeksRedup),
-                ),
-              ),
-            for (final l in daftarLencana)
-              ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: (p?.terbuka(l.id) ?? false)
-                      ? warnaHitam
-                      : const Color(0x1A0F172A),
-                  child: Icon(
-                    (p?.terbuka(l.id) ?? false) ? l.ikon : Icons.lock_outline,
-                    color: (p?.terbuka(l.id) ?? false)
-                        ? Colors.white
-                        : warnaTeksRedup,
-                    size: 20,
+        // Column, bukan ListView: daftarnya pendek, dan semua lencana
+        // langsung dibangun (ListView cuma membangun yang kelihatan).
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if ((p?.harianBeruntun ?? 0) > 0)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    'Tantangan harian beruntun: ${p!.harianBeruntun} hari',
+                    style: const TextStyle(color: warnaTeksRedup),
                   ),
                 ),
-                title: Text(
-                  l.judul,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: (p?.terbuka(l.id) ?? false)
-                        ? warnaTeks
-                        : warnaTeksRedup,
+              for (final l in daftarLencana)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: (p?.terbuka(l.id) ?? false)
+                        ? warnaHitam
+                        : const Color(0x1A0F172A),
+                    child: Icon(
+                      (p?.terbuka(l.id) ?? false) ? l.ikon : Icons.lock_outline,
+                      color: (p?.terbuka(l.id) ?? false)
+                          ? Colors.white
+                          : warnaTeksRedup,
+                      size: 20,
+                    ),
                   ),
+                  title: Text(
+                    l.judul,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: (p?.terbuka(l.id) ?? false)
+                          ? warnaTeks
+                          : warnaTeksRedup,
+                    ),
+                  ),
+                  subtitle: Text(l.syarat),
                 ),
-                subtitle: Text(l.syarat),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
       actions: [

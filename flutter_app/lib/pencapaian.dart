@@ -141,24 +141,34 @@ class PencapaianScope extends InheritedNotifier<Pencapaian> {
       context.getInheritedWidgetOfExactType<PencapaianScope>()?.notifier;
 }
 
-/// Tampilkan notifikasi untuk badge yang baru terbuka.
-void umumkanLencana(BuildContext context, Iterable<Lencana?> badge) {
-  final baru = badge.whereType<Lencana>().toList();
+/// Tampilkan notifikasi untuk lencana yang baru terbuka. Beberapa lencana
+/// sekaligus digabung jadi satu notifikasi, dan notifikasinya muncul di
+/// atas layar supaya nggak menutupi keyboard Wordle atau kolom input.
+void umumkanLencana(BuildContext context, Iterable<Lencana?> lencana) {
+  final baru = lencana.whereType<Lencana>().toList();
   if (baru.isEmpty) return;
   final messenger = ScaffoldMessenger.maybeOf(context);
-  for (final b in baru) {
-    messenger?.showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(b.ikon, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(child: Text('Pencapaian terbuka: ${b.judul}')),
-          ],
-        ),
+  if (messenger == null) return;
+  final tinggiLayar = MediaQuery.maybeSizeOf(context)?.height ?? 600;
+  messenger.showSnackBar(
+    SnackBar(
+      behavior: SnackBarBehavior.floating,
+      dismissDirection: DismissDirection.up,
+      // Margin bawah besar = snackbar "naik" ke bagian atas layar.
+      margin: EdgeInsets.fromLTRB(16, 0, 16, tinggiLayar - 140),
+      content: Row(
+        children: [
+          Icon(baru.first.ikon, color: Colors.white),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Pencapaian terbuka: ${baru.map((l) => l.judul).join(', ')}',
+            ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
 /// Helper untuk halaman: buka beberapa badge sekaligus dan umumkan yang baru.
