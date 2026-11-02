@@ -126,7 +126,6 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   static const _kunciHarian = 'harian_angka.v1';
 
   _Jenis _jenis = _Jenis.bebas; // pilihan di layar
-  bool get _harian => _jenis == _Jenis.harian;
   bool _gameHarian = false; // ronde yang sedang/terakhir jalan itu harian
 
   // Progres harian: tanggal dan tebakan yang sudah dikirim. Disimpan tiap
