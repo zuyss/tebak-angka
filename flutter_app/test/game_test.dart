@@ -7,7 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tebak_angka/game.dart';
 import 'package:tebak_angka/halaman_angka.dart';
+import 'package:tebak_angka/hacker.dart';
 import 'package:tebak_angka/harian.dart';
+import 'package:tebak_angka/komputer.dart';
 import 'package:tebak_angka/main.dart';
 import 'package:tebak_angka/simpanan.dart';
 import 'package:tebak_angka/wordle.dart';
@@ -251,6 +253,107 @@ void main() {
         });
       }
     }
+  });
+
+  group('komputer yang menebak', () {
+    /// Main dengan pemain yang selalu jujur. Kembalikan jumlah percobaan
+    /// kalau komputer menang, atau null kalau nggak.
+    int? mainJujur(Level level, int rahasia) {
+      final k = KomputerMenebak(level);
+      while (!k.selesai) {
+        k.jawab(k.tebakan == rahasia
+            ? Jawaban.benar
+            : k.tebakan > rahasia
+                ? Jawaban.terlaluBesar
+                : Jawaban.terlaluKecil);
+      }
+      return k.status == StatusKomputer.menang ? k.percobaan : null;
+    }
+
+    test('selalu menang dalam jatah kalau pemain jujur, di semua angka', () {
+      for (final level in daftarLevel) {
+        var terbanyak = 0;
+        for (var r = level.bawah; r <= level.atas; r++) {
+          final n = mainJujur(level, r);
+          expect(n, isNotNull, reason: '${level.nama} angka $r');
+          if (n! > terbanyak) terbanyak = n;
+        }
+        expect(terbanyak, lessThanOrEqualTo(level.nyawa));
+      }
+    });
+
+    test('jawaban bertentangan ketahuan', () {
+      final k = KomputerMenebak(kecil); // 1-10
+      expect(k.tebakan, 5);
+      k.jawab(Jawaban.terlaluBesar); // berarti < 5
+      expect((k.bawah, k.atas), (1, 4));
+      k.jawab(Jawaban.terlaluKecil); // tebakan 2 -> berarti > 2
+      k.jawab(Jawaban.terlaluKecil); // tebakan 3 -> sisa cuma 4
+      expect(k.status, StatusKomputer.kalah); // jatah kecil habis (3)
+
+      final k2 = KomputerMenebak(mudah); // 1-50, tebakan 25
+      k2.jawab(Jawaban.terlaluBesar); // < 25
+      k2.jawab(Jawaban.terlaluKecil); // tebakan 12 -> > 12
+      expect((k2.bawah, k2.atas), (13, 24));
+      // Bohong terus "terlalu kecil" sampai rentang habis.
+      while (!k2.selesai) {
+        k2.jawab(Jawaban.terlaluKecil);
+      }
+      expect(k2.status, StatusKomputer.bertentangan);
+      expect(k2.sisaKemungkinan, 0);
+      expect(() => k2.jawab(Jawaban.benar), throwsStateError);
+    });
+  });
+
+  group('Mode Hacker', () {
+    test('nilai PIN termasuk digit kembar', () {
+      expect(nilaiPin('1234', '1234'), const HasilPin(4, 0));
+      expect(nilaiPin('1243', '1234'), const HasilPin(2, 2));
+      expect(nilaiPin('1724', '4721'), const HasilPin(2, 2));
+      expect(nilaiPin('5678', '1234'), const HasilPin(0, 0));
+      // Tiap digit PIN cuma bisa dipakai sekali.
+      expect(nilaiPin('1111', '1222'), const HasilPin(1, 0));
+      expect(nilaiPin('1122', '1222'), const HasilPin(3, 0));
+      expect(nilaiPin('2211', '1122'), const HasilPin(0, 4));
+      expect(nilaiPin('0090', '9000'), const HasilPin(2, 2));
+    });
+
+    test('tepat + salah tempat nggak pernah melebihi panjang PIN', () {
+      final r = Random(11);
+      for (var i = 0; i < 2000; i++) {
+        String acak() => List.generate(4, (_) => r.nextInt(10)).join();
+        final h = nilaiPin(acak(), acak());
+        expect(h.tepat + h.salahTempat, lessThanOrEqualTo(4));
+      }
+    });
+
+    test('menolak input salah, menang, dan kalah', () {
+      final standar = daftarTingkatHacker[1];
+      final g = HackerGame.denganPin(standar, '4721');
+      expect(g.tebak('12'), 'PIN harus 4 digit angka.');
+      expect(g.tebak('12a4'), 'PIN harus 4 digit angka.');
+      expect(g.riwayat, isEmpty);
+      expect(g.tebak('1724'), isNull);
+      expect(g.riwayat.single.$2, const HasilPin(2, 2));
+      expect(g.tebak('4721'), isNull);
+      expect(g.selesai, isTrue);
+      expect(g.menang, isTrue);
+      expect(() => g.tebak('0000'), throwsStateError);
+
+      final kalah = HackerGame.denganPin(standar, '4721');
+      for (var i = 0; i < standar.nyawa; i++) {
+        kalah.tebak('0000');
+      }
+      expect(kalah.selesai, isTrue);
+      expect(kalah.menang, isFalse);
+    });
+
+    test('PIN acak panjangnya sesuai tingkat', () {
+      for (final t in daftarTingkatHacker) {
+        final g = HackerGame(t, random: Random(5));
+        expect(RegExp('^[0-9]{${t.panjang}}\$').hasMatch(g.pin), isTrue);
+      }
+    });
   });
 
   group('tantangan harian', () {
@@ -568,6 +671,53 @@ void main() {
 
       await ketuk(tester, find.text('Salin hasil'));
       expect(ambilClipboard(), startsWith('Wordle Harian #2 (ID) 2/6'));
+    });
+
+    testWidgets('komputer menebak di layar $nama', (tester) async {
+      final simpanan = SimpananMemori();
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      await ketuk(tester, find.text('Komputer menebak'));
+      await ketuk(tester, find.text('Mulai'));
+      expect(find.text('Aku tebak 25'), findsOneWidget); // Mudah: 1-50
+
+      await ketuk(tester, find.text('Terlalu besar'));
+      expect(find.text('Aku tebak 12'), findsOneWidget);
+      expect(find.text('Sisa kemungkinan: 24 angka (1-24)'), findsOneWidget);
+
+      await ketuk(tester, find.text('Benar!'));
+      expect(find.text('Yes! Aku menebak angkamu dalam 2 percobaan.'),
+          findsOneWidget);
+      expect(find.text('Skor komputer: 1 menang, 0 kalah'), findsOneWidget);
+
+      await bukaUlang(tester, simpanan);
+      await ketuk(tester, find.text('Komputer menebak'));
+      expect(find.text('Skor komputer: 1 menang, 0 kalah'), findsOneWidget);
+    });
+
+    testWidgets('mode hacker di layar $nama', (tester) async {
+      final simpanan = SimpananMemori();
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      await ketuk(tester, find.text('Hacker'));
+
+      final kolom = find.byType(TextField);
+      await tester.enterText(kolom, '12');
+      await ketuk(tester, find.text('Coba'));
+      expect(find.text('PIN harus 4 digit angka.'), findsOneWidget);
+
+      await tester.enterText(kolom, '1234');
+      await ketuk(tester, find.text('Coba'));
+      expect(find.textContaining('> 1 2 3 4'), findsOneWidget);
+      expect(find.text('PIN harus 4 digit angka.'), findsNothing);
+      // Kolom input tetap fokus setelah percobaan, siap diketik lagi.
+      final input = tester.widget<EditableText>(find.byType(EditableText));
+      expect(input.focusNode.hasFocus, isTrue);
+
+      await ketuk(tester, find.text('Pemula (3 digit)'));
+      expect(find.textContaining('> 1 2 3 4'), findsNothing);
+      await bukaUlang(tester, simpanan);
+      await ketuk(tester, find.text('Hacker'));
+      // Tingkat terakhir diingat.
+      expect(find.textContaining('Rekor Pemula'), findsOneWidget);
     });
 
     testWidgets('wordle di layar $nama', (tester) async {

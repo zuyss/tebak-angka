@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'game.dart';
 import 'harian.dart';
 import 'kaca.dart';
+import 'komputer.dart';
 import 'simpanan.dart';
 
 /// Satu ronde yang sudah selesai, untuk statistik, grafik, dan riwayat.
@@ -56,6 +57,9 @@ class Ronde {
     );
   }
 }
+
+/// Jenis permainan di halaman Tebak Angka.
+enum _Jenis { bebas, harian, komputer }
 
 /// Kunci rekor: rekor dihitung per mode dan per level, karena menang di
 /// Mudah dalam 3 percobaan nggak sebanding dengan menang di Sulit.
@@ -121,7 +125,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
 
   static const _kunciHarian = 'harian_angka.v1';
 
-  bool _harian = false; // pilihan di layar: main bebas atau harian
+  _Jenis _jenis = _Jenis.bebas; // pilihan di layar
+  bool get _harian => _jenis == _Jenis.harian;
   bool _gameHarian = false; // ronde yang sedang/terakhir jalan itu harian
 
   // Progres harian: tanggal dan tebakan yang sudah dikirim. Disimpan tiap
@@ -129,6 +134,47 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   // mengulang dengan angka yang sama.
   String? _harianTanggal;
   final List<int> _harianTebakan = [];
+
+  // ---------- komputer yang menebak ----------
+
+  KomputerMenebak? _komputer;
+  int _komputerMenang = 0;
+  int _komputerKalah = 0;
+
+  void _mulaiKomputer() {
+    setState(() {
+      _game = null;
+      _gameHarian = false;
+      _tebakan.clear();
+      _komputer = KomputerMenebak(_level);
+      _pesan = 'Pikirkan satu angka antara ${_level.bawah} dan '
+          '${_level.atas}. Jangan diketik, cukup diingat.';
+    });
+  }
+
+  void _jawabKomputer(Jawaban jawaban) {
+    final k = _komputer;
+    if (k == null || k.selesai) return;
+    setState(() {
+      k.jawab(jawaban);
+      switch (k.status) {
+        case StatusKomputer.menang:
+          _komputerMenang++;
+          _pesan = 'Yes! Aku menebak angkamu dalam ${k.percobaan} percobaan.';
+        case StatusKomputer.kalah:
+          _komputerKalah++;
+          _pesan = 'Aku kalah, percobaan habis. Angkamu ada di antara '
+              '${k.bawah} dan ${k.atas}.';
+        case StatusKomputer.bertentangan:
+          // Nggak dihitung menang/kalah, sama seperti versi Python.
+          _pesan = 'Hmm, jawabanmu saling bertentangan. '
+              'Nggak ada angka yang cocok.';
+        case StatusKomputer.berjalan:
+          _pesan = null;
+      }
+    });
+    if (k.selesai) _simpan();
+  }
 
   @override
   void initState() {
@@ -182,6 +228,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
     final (game, hasil) = _putarUlangHarian();
     if (game.selesai) return;
     setState(() {
+      _komputer = null;
       _game = game;
       _gameHarian = true;
       _tebakan
@@ -217,6 +264,11 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         daftarLevel.where((l) => l.nama == data['level']).firstOrNull ?? _level;
     _jumlahMenang = angkaAman(data['menang']);
     _jumlahKalah = angkaAman(data['kalah']);
+    final komputer = data['komputer'];
+    if (komputer is Map) {
+      _komputerMenang = angkaAman(komputer['menang']);
+      _komputerKalah = angkaAman(komputer['kalah']);
+    }
 
     final rekor = data['rekor'];
     if (rekor is Map) {
@@ -236,6 +288,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       'level': _level.nama,
       'menang': _jumlahMenang,
       'kalah': _jumlahKalah,
+      'komputer': {'menang': _komputerMenang, 'kalah': _komputerKalah},
       'rekor': _rekorPer,
       'ronde': [for (final r in _ronde.take(_maksSimpan)) r.keJson()],
     });
@@ -293,6 +346,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
 
   void _mulai() {
     setState(() {
+      _komputer = null;
       _gameHarian = false;
       _game = TebakAngkaGame(_level, mode: _mode);
       _pesan = 'Aku sudah pilih angka antara ${_level.bawah} dan ${_level.atas}.';
@@ -405,8 +459,6 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                   ],
                   const SizedBox(height: 20),
                   _kartuRiwayat(),
-                  const SizedBox(height: 20),
-                  const KartuSegeraHadir(),
                 ],
               ),
             ),
@@ -432,6 +484,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
 
   Widget _kartuMain() {
     final game = _game;
+    final komputer = _komputer;
 
     return KartuKaca(
       child: Column(
@@ -441,6 +494,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           const SizedBox(height: 16),
           if (game != null && !game.selesai)
             ..._areaMain(game)
+          else if (komputer != null && !komputer.selesai)
+            ..._areaKomputer(komputer)
           else
             ..._areaPilih(),
           if (_pesan != null) ...[
@@ -474,21 +529,165 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            PilihanKaca(
-              label: 'Main bebas',
-              dipilih: !_harian,
-              onTap: () => setState(() => _harian = false),
-            ),
-            PilihanKaca(
-              label: 'Tantangan harian',
-              dipilih: _harian,
-              onTap: () => setState(() => _harian = true),
-            ),
+            for (final (jenis, label) in const [
+              (_Jenis.bebas, 'Main bebas'),
+              (_Jenis.harian, 'Tantangan harian'),
+              (_Jenis.komputer, 'Komputer menebak'),
+            ])
+              PilihanKaca(
+                label: label,
+                dipilih: _jenis == jenis,
+                onTap: () => setState(() => _jenis = jenis),
+              ),
           ],
         ),
         const SizedBox(height: 16),
-        if (_harian) ..._areaHarian() else ..._areaPilihBebas(),
+        ...switch (_jenis) {
+          _Jenis.bebas => _areaPilihBebas(),
+          _Jenis.harian => _areaHarian(),
+          _Jenis.komputer => _areaPilihKomputer(),
+        },
       ];
+
+  Widget _pilihanLevel() => Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final level in daftarLevel)
+            PilihanKaca(
+              label: level.nama,
+              dipilih: level == _level,
+              onTap: () => _pilihLevel(level),
+            ),
+        ],
+      );
+
+  List<Widget> _areaPilihKomputer() => [
+        _label('Kamu pikirkan angkanya, aku yang menebak. Aku pakai binary '
+            'search: selalu menebak tengah-tengah, jadi tiap jawabanmu '
+            'memotong kemungkinan jadi setengah.'),
+        const SizedBox(height: 14),
+        _label('Pilih level'),
+        const SizedBox(height: 6),
+        _pilihanLevel(),
+        const SizedBox(height: 6),
+        _label('Angka ${_level.bawah}-${_level.atas}, aku punya '
+            '${_level.nyawa} percobaan'),
+        const SizedBox(height: 6),
+        _label('Skor komputer: $_komputerMenang menang, $_komputerKalah kalah'),
+        const SizedBox(height: 18),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TombolUtama(
+            label: 'Mulai',
+            ikon: Icons.play_arrow_rounded,
+            onPressed: _mulaiKomputer,
+          ),
+        ),
+      ];
+
+  List<Widget> _areaKomputer(KomputerMenebak k) => [
+        _label('Level ${k.level.nama} - tebakan ke-${k.percobaan} '
+            'dari ${k.level.nyawa}'),
+        const SizedBox(height: 4),
+        Text(
+          'Aku tebak ${k.tebakan}',
+          style: const TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w900,
+            color: warnaTeks,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _barRentang(k),
+        const SizedBox(height: 6),
+        _label('Sisa kemungkinan: ${k.sisaKemungkinan} angka '
+            '(${k.bawah}-${k.atas})'),
+        const SizedBox(height: 18),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            PilihanKaca(
+              label: 'Terlalu besar',
+              dipilih: false,
+              onTap: () => _jawabKomputer(Jawaban.terlaluBesar),
+            ),
+            PilihanKaca(
+              label: 'Terlalu kecil',
+              dipilih: false,
+              onTap: () => _jawabKomputer(Jawaban.terlaluKecil),
+            ),
+            TombolUtama(
+              label: 'Benar!',
+              onPressed: () => _jawabKomputer(Jawaban.benar),
+            ),
+          ],
+        ),
+      ];
+
+  /// Bar seluruh rentang level, dengan bagian yang masih mungkin disorot
+  /// hitam dan penanda di posisi tebakan. Kelihatan menyempit tiap jawaban.
+  Widget _barRentang(KomputerMenebak k) {
+    final lebarLevel = k.level.atas - k.level.bawah + 1;
+    final mulai = (k.bawah - k.level.bawah) / lebarLevel;
+    final akhir = (k.atas - k.level.bawah + 1) / lebarLevel;
+    final posisi = (k.tebakan - k.level.bawah + 0.5) / lebarLevel;
+
+    return LayoutBuilder(
+      builder: (context, batas) {
+        final w = batas.maxWidth;
+        return SizedBox(
+          height: 22,
+          child: Stack(
+            children: [
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 7,
+                height: 8,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0x260F172A),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeOutCubic,
+                left: w * mulai,
+                width: (w * (akhir - mulai)).clamp(4.0, w),
+                top: 7,
+                height: 8,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: warnaHitam,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeOutCubic,
+                left: (w * posisi - 11).clamp(0.0, w - 22),
+                top: 0,
+                width: 22,
+                height: 22,
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    border: Border.all(color: warnaHitam, width: 4),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   List<Widget> _areaHarian() {
     final sekarang = widget.jam();
@@ -562,18 +761,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         const SizedBox(height: 14),
         _label('Pilih level'),
         const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final level in daftarLevel)
-              PilihanKaca(
-                label: level.nama,
-                dipilih: level == _level,
-                onTap: () => _pilihLevel(level),
-              ),
-          ],
-        ),
+        _pilihanLevel(),
         const SizedBox(height: 6),
         _label('Angka ${_level.bawah}-${_level.atas}, ${_level.nyawa} percobaan'),
         const SizedBox(height: 18),
@@ -1019,99 +1207,6 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                 ),
               ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Fitur yang sedang direncanakan, supaya pemain tahu apa yang akan datang.
-class KartuSegeraHadir extends StatelessWidget {
-  const KartuSegeraHadir({super.key});
-
-  static const _daftar = [
-    (
-      Icons.smart_toy_outlined,
-      'Komputer yang menebak',
-      'Kamu pikirkan angkanya, komputer menebak pakai binary search.',
-    ),
-    (
-      Icons.terminal,
-      'Mode Hacker',
-      'Bobol PIN 4 digit: tiap tebakan memberi tahu berapa digit yang '
-          'tepat posisinya dan berapa yang salah tempat.',
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return KartuKaca(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Text(
-                'Segera hadir',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: warnaTeks,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: warnaHitam,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'SEGERA',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          for (final (ikon, judul, keterangan) in _daftar)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(ikon, size: 20, color: warnaTeksRedup),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          judul,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: warnaTeks,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          keterangan,
-                          style: const TextStyle(
-                            color: warnaTeksRedup,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

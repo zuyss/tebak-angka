@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'halaman_angka.dart';
+import 'halaman_hacker.dart';
 import 'halaman_wordle.dart';
 import 'kaca.dart';
 import 'simpanan.dart';
@@ -92,8 +93,11 @@ class Beranda extends StatefulWidget {
 }
 
 class _BerandaState extends State<Beranda> {
-  int _halaman = 0; // 0 = Tebak Angka, 1 = Wordle
-  bool _wordlePernahDibuka = false;
+  int _halaman = 0; // 0 = Tebak Angka, 1 = Wordle, 2 = Hacker
+
+  // Halaman dibangun saat pertama dibuka saja, biar app cepat terbuka dan
+  // daftar kata Wordle nggak dimuat kalau nggak dimainkan.
+  final Set<int> _pernahDibuka = {0};
 
   String _sapaan() {
     final jamSekarang = widget.jam().hour;
@@ -106,7 +110,7 @@ class _BerandaState extends State<Beranda> {
   void _pindah(int halaman) {
     setState(() {
       _halaman = halaman;
-      if (halaman == 1) _wordlePernahDibuka = true;
+      _pernahDibuka.add(halaman);
     });
   }
 
@@ -133,14 +137,19 @@ class _BerandaState extends State<Beranda> {
                   index: _halaman,
                   children: [
                     HalamanAngka(simpanan: widget.simpanan, jam: widget.jam),
-                    // Wordle baru dibangun saat pertama dibuka, biar daftar
-                    // katanya nggak dimuat kalau nggak dimainkan.
-                    if (_wordlePernahDibuka)
+                    if (_pernahDibuka.contains(1))
                       HalamanWordle(
                         pemuatKamus: widget.pemuatKamus,
                         aktif: _halaman == 1,
                         simpanan: widget.simpanan,
                         jam: widget.jam,
+                      )
+                    else
+                      const SizedBox.shrink(),
+                    if (_pernahDibuka.contains(2))
+                      HalamanHacker(
+                        simpanan: widget.simpanan,
+                        aktif: _halaman == 2,
                       )
                     else
                       const SizedBox.shrink(),
@@ -173,7 +182,7 @@ class _BerandaState extends State<Beranda> {
       ],
     );
     final menu = _MenuSwitch(
-      pilihan: const ['Tebak Angka', 'Wordle'],
+      pilihan: const ['Tebak Angka', 'Wordle', 'Hacker'],
       indeks: _halaman,
       onGanti: _pindah,
     );
@@ -184,7 +193,7 @@ class _BerandaState extends State<Beranda> {
           return Row(
             children: [
               Expanded(child: judul),
-              SizedBox(width: 320, child: menu),
+              SizedBox(width: 400, child: menu),
             ],
           );
         }

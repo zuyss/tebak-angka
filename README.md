@@ -8,7 +8,8 @@ Kumpulan game tebak-tebakan dalam dua bentuk:
 - **Game terminal (Python)**: kamu menebak angka rahasia komputer dengan petunjuk
   "terlalu besar" atau "terlalu kecil", atau sebaliknya komputer yang menebak angkamu.
 - **App web, Android, dan Windows (Flutter)**: tebak angka mode Panas-Dingin dan Detektif,
-  plus Wordle bahasa Indonesia dan Inggris. **Main langsung di browser:**
+  komputer yang menebak, tantangan harian, Wordle bahasa Indonesia dan Inggris, dan
+  Mode Hacker (bobol PIN). **Main langsung di browser:**
   https://zuyss.github.io/tebak-angka/
 
 ## Tentang proyek ini
@@ -76,19 +77,24 @@ Folder `flutter_app/` berisi versi app dengan tampilan light glassmorphism dan d
     ke angka rahasia, plus keterangan makin dekat atau makin jauh dari tebakan sebelumnya.
   - *Detektif*: tiap tebakan salah membuka satu petunjuk sifat angka (genap/ganjil,
     kelipatan, prima, jumlah digit, rentang), dari yang samar ke yang spesifik.
+- **Komputer yang menebak**: kebalikannya, kamu memikirkan angka dan komputer menebak
+  pakai binary search. Rentang yang masih mungkin ditampilkan menyempit tiap jawaban,
+  dan jawaban yang saling bertentangan ketahuan.
 - **Wordle** bahasa Indonesia dan Inggris, 4 sampai 7 huruf, 6 kesempatan.
   Bisa diketik pakai keyboard di layar atau keyboard fisik.
 - **Tantangan harian**: satu angka dan satu kata Wordle (per bahasa) yang sama untuk
   semua pemain tiap hari, cuma bisa dimainkan sekali, dan hasilnya bisa disalin untuk
   dibagikan. Tanpa server: angka dan katanya diturunkan dari tanggal lewat fungsi hash
   di `flutter_app/lib/harian.dart`, yang hasilnya sama di web, Android, dan Windows.
+- **Mode Hacker**: bobol PIN 3, 4, atau 5 digit dengan petunjuk ala Mastermind (berapa
+  digit tepat posisinya, berapa yang salah tempat), di tampilan bergaya terminal.
 
 Statistik (menang/kalah, rekor per mode dan level, riwayat, streak Wordle) tersimpan
 di perangkat dan tetap ada setelah app ditutup. Di versi web, statistik tersimpan di
 browser yang dipakai.
 
-Logika game ada di `flutter_app/lib/game.dart` dan `flutter_app/lib/wordle.dart`
-(tanpa Flutter, gampang dites). Tampilan ada di `halaman_angka.dart`, `halaman_wordle.dart`,
+Logika game ada di `game.dart`, `komputer.dart`, `harian.dart`, `wordle.dart`, dan
+`hacker.dart` di `flutter_app/lib/` (tanpa Flutter, gampang dites). Tampilan ada di `halaman_angka.dart`, `halaman_wordle.dart`,
 dan komponen kaca di `kaca.dart`.
 
 Daftar kata Wordle (`flutter_app/assets/kata/`) dibuat dengan `flutter_app/tool/buat_kata.py`
@@ -122,8 +128,8 @@ flutter build windows --release  # hasil: build/windows/x64/runner/Release/
 - [x] Mode kebalikan: komputer yang menebak
 - [x] App: statistik, rekor per mode dan level, dan pilihan terakhir tersimpan
 - [x] App: tantangan harian (angka dan kata yang sama untuk semua orang, bisa dibagikan)
-- [ ] App: mode komputer yang menebak, seperti versi Python
-- [ ] App: Mode Hacker, menebak PIN 4 digit dengan petunjuk ala Mastermind
+- [x] App: mode komputer yang menebak, seperti versi Python
+- [x] App: Mode Hacker, menebak PIN dengan petunjuk ala Mastermind
 
 ## Lisensi
 
