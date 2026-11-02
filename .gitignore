@@ -239,3 +239,7 @@ flutter_app/web/
 flutter_app/windows/
 flutter_app/test/widget_test.dart
 flutter_app/README.md
+
+# High score lokal game tebak angka
+skor_tertinggi.json
+skor_tertinggi.json.tmp

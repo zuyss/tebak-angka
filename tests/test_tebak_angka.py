@@ -4,8 +4,11 @@ Menjalankan: python -m unittest discover -s tests -t . -v
 Hanya stdlib, tanpa dependensi.
 """
 import io
+import json
+import tempfile
 import unittest
 from contextlib import redirect_stdout
+from pathlib import Path
 from unittest import mock
 
 import tebak_angka
@@ -78,6 +81,99 @@ class TestAlurPermainan(unittest.TestCase):
             with mock.patch("builtins.input", side_effect=["1"] + ["1"] * 10):
                 with redirect_stdout(io.StringIO()):
                     self.assertFalse(tebak_angka.main_satu_ronde())
+
+
+class TestSkorTertinggi(unittest.TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.file = Path(self.folder.name) / "skor.json"
+
+    def tearDown(self):
+        self.folder.cleanup()
+
+    def test_file_belum_ada_dianggap_kosong(self):
+        self.assertEqual(tebak_angka.muat_skor(self.file), {})
+
+    def test_file_rusak_tidak_crash(self):
+        for isi in ("bukan json", "[1, 2]", '{"Mudah": "tiga", "Sulit": 0, "Sedang": 5}'):
+            with self.subTest(isi=isi):
+                self.file.write_text(isi, encoding="utf-8")
+                hasil = tebak_angka.muat_skor(self.file)
+                self.assertEqual(hasil, {"Sedang": 5} if "Sedang" in isi else {})
+
+    def test_simpan_lalu_muat(self):
+        self.assertTrue(tebak_angka.simpan_skor(self.file, {"Mudah": 3}))
+        self.assertEqual(tebak_angka.muat_skor(self.file), {"Mudah": 3})
+
+    def test_hanya_rekor_lebih_sedikit_yang_dicatat(self):
+        skor = {}
+        self.assertTrue(tebak_angka.catat_kemenangan(skor, "Mudah", 5))
+        self.assertFalse(tebak_angka.catat_kemenangan(skor, "Mudah", 5))
+        self.assertFalse(tebak_angka.catat_kemenangan(skor, "Mudah", 8))
+        self.assertTrue(tebak_angka.catat_kemenangan(skor, "Mudah", 2))
+        self.assertEqual(skor, {"Mudah": 2})
+
+    def test_menang_menyimpan_rekor_ke_file(self):
+        with mock.patch.object(tebak_angka.random, "randint", return_value=42):
+            with mock.patch("builtins.input", side_effect=["1", "10", "42"]):
+                with redirect_stdout(io.StringIO()) as out:
+                    self.assertTrue(tebak_angka.main_satu_ronde(self.file))
+        self.assertIn("Rekor baru", out.getvalue())
+        self.assertEqual(json.loads(self.file.read_text(encoding="utf-8")), {"Mudah": 2})
+
+
+def jawab_jujur(rahasia):
+    """Bikin fungsi input palsu yang menjawab tebakan komputer dengan jujur."""
+    def jawab(prompt):
+        if prompt.startswith("Level"):
+            return jawab.level
+        tebakan = int(prompt.split()[2].rstrip("."))
+        jawab.jumlah += 1
+        if tebakan == rahasia:
+            return "s"
+        return "b" if tebakan > rahasia else "k"
+    jawab.jumlah = 0
+    return jawab
+
+
+class TestKomputerMenebak(unittest.TestCase):
+    def test_selalu_menang_kalau_dijawab_jujur(self):
+        """Binary search: 2^nyawa harus >= jumlah angka di setiap level."""
+        for kode, (nama, bawah, atas, nyawa) in tebak_angka.LEVEL.items():
+            for rahasia in range(bawah, atas + 1):
+                with self.subTest(level=nama, rahasia=rahasia):
+                    jawab = jawab_jujur(rahasia)
+                    jawab.level = kode
+                    with mock.patch("builtins.input", side_effect=jawab):
+                        with redirect_stdout(io.StringIO()):
+                            self.assertTrue(tebak_angka.komputer_menebak())
+                    self.assertLessEqual(jawab.jumlah, nyawa)
+
+    def test_jawaban_bertentangan_ketahuan(self):
+        # 25 -> "terlalu besar", 12 -> "terlalu kecil", 18 -> b, 15 -> k,
+        # 16 -> k, 17 -> b: rentang habis, berarti jawabannya bohong.
+        jawaban = ["1", "b", "k", "b", "k", "k", "b"]
+        with mock.patch("builtins.input", side_effect=jawaban):
+            with redirect_stdout(io.StringIO()) as out:
+                self.assertIsNone(tebak_angka.komputer_menebak())
+        self.assertIn("bertentangan", out.getvalue())
+
+    def test_input_jawaban_tidak_valid_diminta_ulang(self):
+        with mock.patch("builtins.input", side_effect=["1", "x", "", " S "]):
+            with redirect_stdout(io.StringIO()):
+                self.assertTrue(tebak_angka.komputer_menebak())
+
+
+class TestMenu(unittest.TestCase):
+    def test_lihat_skor_lalu_keluar(self):
+        with tempfile.TemporaryDirectory() as folder:
+            file = Path(folder) / "skor.json"
+            tebak_angka.simpan_skor(file, {"Sulit": 7})
+            with mock.patch("builtins.input", side_effect=["3", EOFError]):
+                with redirect_stdout(io.StringIO()) as out:
+                    tebak_angka.main(file)
+        self.assertIn("Sulit: 7", out.getvalue())
+        self.assertIn("Mudah: -", out.getvalue())
 
 
 if __name__ == "__main__":

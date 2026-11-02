@@ -1,6 +1,6 @@
 # Tebak Angka
 
-Game tebak angka berbasis terminal yang ditulis dengan Python. Pemain menebak angka rahasia dengan bantuan petunjuk "terlalu besar" atau "terlalu kecil" sampai benar atau percobaan habis.
+Game tebak angka berbasis terminal yang ditulis dengan Python. Ada dua mode: kamu menebak angka rahasia komputer dengan petunjuk "terlalu besar" atau "terlalu kecil", atau sebaliknya komputer yang menebak angka yang kamu pikirkan.
 
 ## Fitur
 
@@ -9,12 +9,17 @@ Game tebak angka berbasis terminal yang ditulis dengan Python. Pemain menebak an
 - Petunjuk di setiap tebakan
 - Skor menang/kalah selama sesi berjalan
 - Opsi main lagi tanpa restart program
+- High score per level (percobaan paling sedikit) tersimpan di `skor_tertinggi.json`
+- Mode kebalikan: komputer menebak angkamu pakai binary search, dan tahu kalau jawabanmu saling bertentangan
 
 | Level  | Rentang | Percobaan |
 |--------|---------|-----------|
 | Mudah  | 1-50    | 10        |
 | Sedang | 1-100   | 7         |
 | Sulit  | 1-500   | 9         |
+
+Jumlah percobaan tiap level pas untuk binary search (2^10 >= 50, 2^7 >= 100, 2^9 >= 500),
+jadi di mode kebalikan komputer selalu menang selama kamu menjawab jujur.
 
 ## Cara Menjalankan
 
@@ -84,8 +89,8 @@ Versi awal dibuat dengan bantuan AI; perbaikan dan fitur selanjutnya dikerjakan 
 
 - [x] Tangani input angka non-ASCII tanpa crash
 - [x] Keluar dengan rapi saat Ctrl+C
-- [ ] Simpan high score ke file
-- [ ] Mode kebalikan: komputer yang menebak
+- [x] Simpan high score ke file
+- [x] Mode kebalikan: komputer yang menebak
 
 ## Lisensi
 
