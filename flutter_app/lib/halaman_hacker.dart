@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'duel.dart';
 import 'hacker.dart';
 import 'kaca.dart';
+import 'pengaturan.dart';
 import 'simpanan.dart';
 
 const _mono = TextStyle(
@@ -39,6 +41,50 @@ class _HalamanHackerState extends State<HalamanHacker> {
 
   static const _kunciSimpanan = 'hacker.v1';
 
+  // ---------- duel ----------
+
+  bool _modeDuel = false;
+  Duel? _duel;
+  String? _infoDuel; // pesan giliran/hasil duel (bukan error)
+  final _inputPin = TextEditingController();
+
+  bool get _menungguPin =>
+      _modeDuel &&
+      (_duel?.tahap == TahapDuel.rahasia1 ||
+          _duel?.tahap == TahapDuel.rahasia2);
+
+  void _gantiModeDuel(bool duel) {
+    if (duel == _modeDuel) return;
+    _modeDuel = duel;
+    _baru();
+  }
+
+  void _kunciPin() {
+    final duel = _duel;
+    if (duel == null || !_menungguPin) return;
+    final pin = _inputPin.text.trim();
+    if (pin.length != _tingkat.panjang || !RegExp(r'^[0-9]+$').hasMatch(pin)) {
+      setState(() => _pesan = 'PIN harus ${_tingkat.panjang} digit angka.');
+      return;
+    }
+    final penebak = duel.tahap == TahapDuel.rahasia1 ? 2 : 1;
+    setState(() {
+      duel.rahasiaSiap();
+      _game = HackerGame.denganPin(_tingkat, pin);
+      _inputPin.clear();
+      _pesan = null;
+      _infoDuel = 'Pemain $penebak, bobol PIN-nya.';
+    });
+    _fokus.requestFocus();
+  }
+
+  String _teksHasilDuel(Duel duel) => switch (duel.hasil) {
+        HasilDuel.pemain1 => 'Pemain 1 menang!',
+        HasilDuel.pemain2 => 'Pemain 2 menang!',
+        HasilDuel.seri => 'Seri!',
+        null => '',
+      };
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +101,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
   @override
   void dispose() {
     _input.dispose();
+    _inputPin.dispose();
     _fokus.dispose();
     super.dispose();
   }
@@ -92,6 +139,11 @@ class _HalamanHackerState extends State<HalamanHacker> {
       _game = HackerGame(_tingkat);
       _pesan = null;
       _input.clear();
+      _inputPin.clear();
+      _duel = _modeDuel ? Duel(nyawa: _tingkat.nyawa) : null;
+      _infoDuel = _modeDuel
+          ? 'Pemain 1, pasang PIN. Pemain 2 jangan lihat layar!'
+          : null;
     });
     if (tingkat != null) _simpan();
     _fokus.requestFocus();
@@ -104,6 +156,9 @@ class _HalamanHackerState extends State<HalamanHacker> {
       return;
     }
     final error = game.tebak(_input.text);
+    if (error == null) {
+      PengaturanScope.baca(context)?.getarkan(kuat: game.selesai);
+    }
     if (error != null) {
       setState(() => _pesan = error);
       _input.selection =
@@ -111,6 +166,30 @@ class _HalamanHackerState extends State<HalamanHacker> {
       _fokus.requestFocus();
       return;
     }
+    final duel = _duel;
+    if (_modeDuel && duel != null) {
+      setState(() {
+        _input.clear();
+        _pesan = null;
+        if (game.selesai) {
+          final penebak = duel.pemainAktif;
+          duel.selesaiMenebak(
+              menang: game.menang, percobaan: game.riwayat.length);
+          final hasil = game.menang
+              ? 'Pemain $penebak membobol PIN ${game.pin} dalam '
+                  '${game.riwayat.length} percobaan.'
+              : 'Pemain $penebak gagal. PIN-nya ${game.pin}.';
+          _infoDuel = duel.tahap == TahapDuel.selesai
+              ? '$hasil ${_teksHasilDuel(duel)} '
+                  '(P1: ${duel.teksSkor(duel.skor1)}, '
+                  'P2: ${duel.teksSkor(duel.skor2)})'
+              : '$hasil Sekarang Pemain 2 pasang PIN, Pemain 1 jangan lihat!';
+        }
+      });
+      if (!game.selesai) _fokus.requestFocus();
+      return;
+    }
+
     setState(() {
       _input.clear();
       _pesan = null;
@@ -161,6 +240,23 @@ class _HalamanHackerState extends State<HalamanHacker> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              PilihanKaca(
+                label: 'Solo',
+                dipilih: !_modeDuel,
+                onTap: () => _gantiModeDuel(false),
+              ),
+              PilihanKaca(
+                label: 'Duel 2 pemain',
+                dipilih: _modeDuel,
+                onTap: () => _gantiModeDuel(true),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           const Text('Tingkat keamanan', style: gayaLabel),
           const SizedBox(height: 6),
           Wrap(
@@ -182,7 +278,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               TombolUtama(
-                label: 'PIN baru',
+                label: _modeDuel ? 'Duel baru' : 'PIN baru',
                 ikon: Icons.refresh,
                 onPressed: _baru,
               ),
@@ -202,6 +298,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
   }
 
   Widget _terminal() {
+    if (_menungguPin) return _terminalPasangPin();
     final game = _game;
     final p = _tingkat.panjang;
 
@@ -238,7 +335,14 @@ class _HalamanHackerState extends State<HalamanHacker> {
                 ),
               ),
             ),
-          if (game.selesai) ...[
+          if (_infoDuel != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _infoDuel!,
+              style: _mono.copyWith(color: Colors.white),
+            ),
+          ],
+          if (game.selesai && !_modeDuel) ...[
             const SizedBox(height: 10),
             Text(
               game.menang
@@ -316,6 +420,87 @@ class _HalamanHackerState extends State<HalamanHacker> {
                     child: Text(
                       game.selesai ? 'Lagi' : 'Coba',
                       style: const TextStyle(
+                        color: warnaHitam,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_pesan != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _pesan!,
+              style: _mono.copyWith(color: const Color(0xFFF87171)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _terminalPasangPin() {
+    final p = _tingkat.panjang;
+    return KartuKaca(
+      gelap: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            '\$ pasang-pin --digit $p',
+            style: _mono.copyWith(color: _redupTerminal, fontSize: 13),
+          ),
+          if (_infoDuel != null) ...[
+            const SizedBox(height: 10),
+            Text(_infoDuel!, style: _mono.copyWith(color: Colors.white)),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            key: const ValueKey('baris-pasang-pin'),
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _inputPin,
+                  obscureText: true,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(p),
+                  ],
+                  onSubmitted: (_) => _kunciPin(),
+                  cursorColor: _hijauTerminal,
+                  style: _mono.copyWith(
+                    color: Colors.white,
+                    fontSize: 20,
+                    letterSpacing: 6,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'PIN $p digit',
+                    hintStyle: _mono.copyWith(color: const Color(0x40FFFFFF)),
+                    filled: true,
+                    fillColor: const Color(0x14FFFFFF),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Material(
+                color: _hijauTerminal,
+                shape: const StadiumBorder(),
+                child: InkWell(
+                  customBorder: const StadiumBorder(),
+                  onTap: _kunciPin,
+                  child: const Padding(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                    child: Text(
+                      'Kunci',
+                      style: TextStyle(
                         color: warnaHitam,
                         fontWeight: FontWeight.w800,
                       ),

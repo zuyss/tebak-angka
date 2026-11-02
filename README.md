@@ -81,7 +81,10 @@ Folder `flutter_app/` berisi versi app dengan tampilan light glassmorphism dan d
   pakai binary search. Rentang yang masih mungkin ditampilkan menyempit tiap jawaban,
   dan jawaban yang saling bertentangan ketahuan.
 - **Wordle** bahasa Indonesia dan Inggris, 4 sampai 7 huruf, 6 kesempatan.
-  Bisa diketik pakai keyboard di layar atau keyboard fisik.
+  Bisa diketik pakai keyboard di layar atau keyboard fisik. Ada **mode sulit** seperti
+  Wordle asli: huruf hijau wajib tetap di posisinya dan huruf kuning wajib dipakai lagi.
+- **Duel 2 pemain** di satu perangkat, untuk tebak angka dan Mode Hacker: pemain 1 bikin
+  rahasia, pemain 2 menebak, lalu gantian. Yang butuh percobaan paling sedikit menang.
 - **Tantangan harian**: satu angka dan satu kata Wordle (per bahasa) yang sama untuk
   semua pemain tiap hari, cuma bisa dimainkan sekali, dan hasilnya bisa disalin untuk
   dibagikan. Tanpa server: angka dan katanya diturunkan dari tanggal lewat fungsi hash
@@ -93,8 +96,11 @@ Statistik (menang/kalah, rekor per mode dan level, riwayat, streak Wordle) tersi
 di perangkat dan tetap ada setelah app ditutup. Di versi web, statistik tersimpan di
 browser yang dipakai.
 
-Logika game ada di `game.dart`, `komputer.dart`, `harian.dart`, `wordle.dart`, dan
-`hacker.dart` di `flutter_app/lib/` (tanpa Flutter, gampang dites). Tampilan ada di `halaman_angka.dart`, `halaman_wordle.dart`,
+Lewat tombol **Pengaturan** (ikon roda gigi) kamu bisa mematikan animasi latar kalau app
+terasa patah-patah, mematikan getar, atau menghapus semua statistik.
+
+Logika game ada di `game.dart`, `komputer.dart`, `harian.dart`, `wordle.dart`,
+`hacker.dart`, dan `duel.dart` di `flutter_app/lib/` (tanpa Flutter, gampang dites). Tampilan ada di `halaman_angka.dart`, `halaman_wordle.dart`,
 dan komponen kaca di `kaca.dart`.
 
 Daftar kata Wordle (`flutter_app/assets/kata/`) dibuat dengan `flutter_app/tool/buat_kata.py`
@@ -130,6 +136,9 @@ flutter build windows --release  # hasil: build/windows/x64/runner/Release/
 - [x] App: tantangan harian (angka dan kata yang sama untuk semua orang, bisa dibagikan)
 - [x] App: mode komputer yang menebak, seperti versi Python
 - [x] App: Mode Hacker, menebak PIN dengan petunjuk ala Mastermind
+- [x] App: pengaturan (animasi latar, getar, hapus statistik)
+- [x] App: duel 2 pemain untuk tebak angka dan Mode Hacker
+- [x] App: Wordle mode sulit
 
 ## Lisensi
 

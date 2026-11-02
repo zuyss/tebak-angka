@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'duel.dart';
 import 'game.dart';
 import 'harian.dart';
 import 'kaca.dart';
 import 'komputer.dart';
+import 'pengaturan.dart';
 import 'simpanan.dart';
 
 /// Satu ronde yang sudah selesai, untuk statistik, grafik, dan riwayat.
@@ -59,7 +61,7 @@ class Ronde {
 }
 
 /// Jenis permainan di halaman Tebak Angka.
-enum _Jenis { bebas, harian, komputer }
+enum _Jenis { bebas, harian, komputer, duel }
 
 /// Kunci rekor: rekor dihitung per mode dan per level, karena menang di
 /// Mudah dalam 3 percobaan nggak sebanding dengan menang di Sulit.
@@ -143,6 +145,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   void _mulaiKomputer() {
     setState(() {
       _game = null;
+      _duel = null;
+      _gameDuel = false;
       _gameHarian = false;
       _tebakan.clear();
       _komputer = KomputerMenebak(_level);
@@ -154,6 +158,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   void _jawabKomputer(Jawaban jawaban) {
     final k = _komputer;
     if (k == null || k.selesai) return;
+    PengaturanScope.baca(context)
+        ?.getarkan(kuat: jawaban == Jawaban.benar);
     setState(() {
       k.jawab(jawaban);
       switch (k.status) {
@@ -173,6 +179,58 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       }
     });
     if (k.selesai) _simpan();
+  }
+
+  // ---------- duel 2 pemain ----------
+
+  Duel? _duel;
+  bool _gameDuel = false; // ronde yang sedang jalan adalah giliran duel
+  final _inputRahasia = TextEditingController();
+
+  bool get _duelMenungguRahasia =>
+      _duel?.tahap == TahapDuel.rahasia1 || _duel?.tahap == TahapDuel.rahasia2;
+
+  void _mulaiDuel() {
+    setState(() {
+      _game = null;
+      _komputer = null;
+      _gameHarian = false;
+      _gameDuel = false;
+      _tebakan.clear();
+      _inputRahasia.clear();
+      _duel = Duel(nyawa: _level.nyawa);
+      _pesan = null;
+    });
+  }
+
+  void _batalDuel() {
+    setState(() {
+      _duel = null;
+      _game = null;
+      _gameDuel = false;
+      _tebakan.clear();
+      _pesan = 'Duel dibatalkan.';
+    });
+  }
+
+  void _kunciRahasia() {
+    final duel = _duel;
+    if (duel == null || !_duelMenungguRahasia) return;
+    final parse = parseTebakan(_inputRahasia.text, _level);
+    if (parse.error != null) {
+      setState(() => _pesan = parse.error);
+      return;
+    }
+    final penebak = duel.tahap == TahapDuel.rahasia1 ? 2 : 1;
+    setState(() {
+      duel.rahasiaSiap();
+      _game = TebakAngkaGame.denganRahasia(_level, parse.angka!);
+      _gameDuel = true;
+      _inputRahasia.clear();
+      _tebakan.clear();
+      _pesan = 'Pemain $penebak, giliranmu menebak.';
+    });
+    _fokus.requestFocus();
   }
 
   @override
@@ -228,6 +286,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
     if (game.selesai) return;
     setState(() {
       _komputer = null;
+      _duel = null;
+      _gameDuel = false;
       _game = game;
       _gameHarian = true;
       _tebakan
@@ -306,6 +366,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   @override
   void dispose() {
     _input.dispose();
+    _inputRahasia.dispose();
     _fokus.dispose();
     super.dispose();
   }
@@ -345,6 +406,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
 
   void _mulai() {
     setState(() {
+      _duel = null;
+      _gameDuel = false;
       _komputer = null;
       _gameHarian = false;
       _game = TebakAngkaGame(_level, mode: _mode);
@@ -371,9 +434,36 @@ class _HalamanAngkaState extends State<HalamanAngka> {
     }
 
     final hasil = game.tebak(parse.angka!);
+    PengaturanScope.baca(context)?.getarkan(kuat: game.selesai);
     if (_gameHarian) {
       _harianTebakan.add(hasil.angka);
       _simpanHarian();
+    }
+
+    final duel = _duel;
+    if (_gameDuel && duel != null) {
+      setState(() {
+        _input.clear();
+        _tebakan.insert(0, hasil);
+        final penebak = duel.pemainAktif;
+        if (game.selesai) {
+          duel.selesaiMenebak(menang: game.menang, percobaan: game.percobaan);
+          _gameDuel = false;
+          _pesan = game.menang
+              ? 'Pemain $penebak menebak ${game.rahasia} dalam '
+                  '${game.percobaan} percobaan.'
+              : 'Pemain $penebak gagal. Angkanya ${game.rahasia}.';
+          if (duel.tahap == TahapDuel.selesai) {
+            _pesan = '$_pesan ${_teksHasilDuel(duel)}';
+          } else {
+            _pesan = '$_pesan Sekarang Pemain 2 bikin angka rahasia.';
+          }
+        } else {
+          _pesan = '${hasil.angka}: ${hasil.suhu!.label}!';
+        }
+      });
+      if (!game.selesai) _fokus.requestFocus();
+      return;
     }
 
     setState(() {
@@ -495,6 +585,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
             ..._areaMain(game)
           else if (komputer != null && !komputer.selesai)
             ..._areaKomputer(komputer)
+          else if (_duelMenungguRahasia)
+            ..._areaRahasiaDuel()
           else
             ..._areaPilih(),
           if (_pesan != null) ...[
@@ -532,6 +624,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
               (_Jenis.bebas, 'Main bebas'),
               (_Jenis.harian, 'Tantangan harian'),
               (_Jenis.komputer, 'Komputer menebak'),
+              (_Jenis.duel, 'Duel'),
             ])
               PilihanKaca(
                 label: label,
@@ -545,6 +638,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           _Jenis.bebas => _areaPilihBebas(),
           _Jenis.harian => _areaHarian(),
           _Jenis.komputer => _areaPilihKomputer(),
+          _Jenis.duel => _areaPilihDuel(),
         },
       ];
 
@@ -560,6 +654,121 @@ class _HalamanAngkaState extends State<HalamanAngka> {
             ),
         ],
       );
+
+  String _teksHasilDuel(Duel duel) => switch (duel.hasil) {
+        HasilDuel.pemain1 => 'Pemain 1 menang!',
+        HasilDuel.pemain2 => 'Pemain 2 menang!',
+        HasilDuel.seri => 'Seri!',
+        null => '',
+      };
+
+  List<Widget> _areaPilihDuel() {
+    final duel = _duel;
+    return [
+      _label('Dua pemain, satu perangkat. Pemain 1 bikin angka rahasia, '
+          'Pemain 2 menebak (pakai petunjuk Panas-Dingin). Lalu gantian. '
+          'Yang butuh percobaan paling sedikit menang.'),
+      const SizedBox(height: 14),
+      _label('Pilih level'),
+      const SizedBox(height: 6),
+      _pilihanLevel(),
+      const SizedBox(height: 6),
+      _label('Angka ${_level.bawah}-${_level.atas}, '
+          '${_level.nyawa} percobaan per giliran'),
+      if (duel != null && duel.tahap == TahapDuel.selesai) ...[
+        const SizedBox(height: 14),
+        Text(
+          _teksHasilDuel(duel),
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: warnaTeks,
+          ),
+        ),
+        const SizedBox(height: 4),
+        _label('Pemain 1: ${duel.teksSkor(duel.skor1)}   '
+            'Pemain 2: ${duel.teksSkor(duel.skor2)}'),
+      ],
+      const SizedBox(height: 18),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TombolUtama(
+          label: duel == null ? 'Mulai duel' : 'Duel lagi',
+          ikon: Icons.people_outline,
+          onPressed: _mulaiDuel,
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _areaRahasiaDuel() {
+    final duel = _duel!;
+    final pembuat = duel.pemainAktif;
+    final penebak = pembuat == 1 ? 2 : 1;
+    return [
+      _label('Duel - Level ${_level.nama}'),
+      const SizedBox(height: 4),
+      Text(
+        'Pemain $pembuat, bikin angka rahasia',
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+          color: warnaTeks,
+        ),
+      ),
+      const SizedBox(height: 4),
+      _label('Angka ${_level.bawah}-${_level.atas}. '
+          'Pemain $penebak jangan lihat layar dulu!'),
+      if (duel.skor2 != null) ...[
+        const SizedBox(height: 4),
+        _label('Skor Pemain 2: ${duel.teksSkor(duel.skor2)}'),
+      ],
+      const SizedBox(height: 14),
+      Row(
+        key: const ValueKey('baris-rahasia-duel'),
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _inputRahasia,
+              obscureText: true,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(maxTebakanDigits),
+              ],
+              onSubmitted: (_) => _kunciRahasia(),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: warnaTeks,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Angka rahasia',
+                filled: true,
+                fillColor: const Color(0x99FFFFFF),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          TombolUtama(label: 'Kunci', onPressed: _kunciRahasia),
+        ],
+      ),
+      const SizedBox(height: 10),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton(
+          onPressed: _batalDuel,
+          child: const Text('Batal duel'),
+        ),
+      ),
+    ];
+  }
 
   List<Widget> _areaPilihKomputer() => [
         _label('Kamu pikirkan angkanya, aku yang menebak. Aku pakai binary '
@@ -777,8 +986,11 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   List<Widget> _areaMain(TebakAngkaGame game) {
     final terakhir = _tebakan.isEmpty ? null : _tebakan.first;
     return [
-      _label('${game.mode.nama} - Level ${game.level.nama} '
-          '(${game.level.bawah}-${game.level.atas})'),
+      _label(_gameDuel
+          ? 'Duel - Pemain ${_duel?.pemainAktif} menebak '
+              '(${game.level.bawah}-${game.level.atas})'
+          : '${game.mode.nama} - Level ${game.level.nama} '
+              '(${game.level.bawah}-${game.level.atas})'),
       const SizedBox(height: 4),
       Text(
         'Sisa percobaan: ${game.sisa} dari ${game.level.nyawa}',

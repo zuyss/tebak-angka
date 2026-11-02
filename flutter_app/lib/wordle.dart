@@ -74,11 +74,39 @@ class KamusWordle {
   String acakJawaban(Random random) => jawaban[random.nextInt(jawaban.length)];
 }
 
+/// Aturan mode sulit, seperti hard mode Wordle asli: huruf yang sudah
+/// ketemu wajib dipakai lagi. Huruf hijau harus tetap di posisinya, huruf
+/// kuning harus ada di tebakan (di posisi mana pun).
+/// Kembalikan pesan pelanggaran pertama, atau null kalau tebakan sah.
+String? cekModeSulit(
+    String kata, List<(String, List<StatusHuruf>)> tebakanSebelumnya) {
+  for (final (lama, nilai) in tebakanSebelumnya) {
+    for (var i = 0; i < lama.length; i++) {
+      if (nilai[i] == StatusHuruf.benar && kata[i] != lama[i]) {
+        return 'Mode sulit: huruf ke-${i + 1} harus ${lama[i].toUpperCase()}.';
+      }
+    }
+    for (var i = 0; i < lama.length; i++) {
+      if (nilai[i] == StatusHuruf.ada && !kata.contains(lama[i])) {
+        return 'Mode sulit: tebakan harus memuat ${lama[i].toUpperCase()}.';
+      }
+    }
+  }
+  return null;
+}
+
 class WordleGame {
-  WordleGame({required this.jawaban, required this.kamus});
+  WordleGame({
+    required this.jawaban,
+    required this.kamus,
+    this.modeSulit = false,
+  });
 
   final String jawaban;
   final KamusWordle kamus;
+
+  /// Lihat [cekModeSulit].
+  final bool modeSulit;
 
   final List<(String, List<StatusHuruf>)> tebakan = [];
   bool selesai = false;
@@ -106,6 +134,10 @@ class WordleGame {
     final k = kata.trim().toLowerCase();
     if (k.length != panjang) return 'Kata harus $panjang huruf.';
     if (!kamus.valid.contains(k)) return 'Kata tidak ada di kamus.';
+    if (modeSulit) {
+      final pelanggaran = cekModeSulit(k, tebakan);
+      if (pelanggaran != null) return pelanggaran;
+    }
 
     tebakan.add((k, nilaiTebakan(k, jawaban)));
     if (k == jawaban) {

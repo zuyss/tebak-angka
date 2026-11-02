@@ -14,6 +14,8 @@ abstract class Simpanan {
   Map<String, Object?>? baca(String kunci);
 
   void tulis(String kunci, Map<String, Object?> data);
+
+  void hapus(String kunci);
 }
 
 /// Ubah teks JSON jadi map. Teks yang rusak atau bukan objek -> null.
@@ -41,6 +43,9 @@ class SimpananPrefs implements Simpanan {
     // di belakang, jadi tampilan nggak perlu menunggu.
     unawaited(_prefs.setString(kunci, jsonEncode(data)));
   }
+
+  @override
+  void hapus(String kunci) => unawaited(_prefs.remove(kunci));
 }
 
 /// Penyimpanan di memori saja, untuk test.
@@ -54,6 +59,9 @@ class SimpananMemori implements Simpanan {
   void tulis(String kunci, Map<String, Object?> data) {
     _isi[kunci] = jsonEncode(data);
   }
+
+  @override
+  void hapus(String kunci) => _isi.remove(kunci);
 
   /// Untuk test: isi langsung dengan teks mentah (misalnya yang rusak).
   void isiMentah(String kunci, String teks) => _isi[kunci] = teks;

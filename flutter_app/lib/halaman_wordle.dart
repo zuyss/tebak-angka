@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import 'harian.dart';
 import 'kaca.dart';
+import 'pengaturan.dart';
 import 'simpanan.dart';
 import 'wordle.dart';
 
@@ -68,6 +69,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
   int _main = 0;
   int _menang = 0;
   int _beruntun = 0;
+  bool _modeSulit = false;
 
   static const _kunciSimpanan = 'wordle.v1';
 
@@ -105,6 +107,30 @@ class _HalamanWordleState extends State<HalamanWordle> {
       'tanggal': _harianTanggal,
       ..._harianTebakan,
     });
+  }
+
+  void _gantiModeSulit() {
+    final game = _game;
+    // Seperti Wordle asli: mode sulit cuma bisa diganti sebelum menebak.
+    if (game != null && game.tebakan.isNotEmpty && !game.selesai) {
+      setState(() => _pesan = 'Mode sulit cuma bisa diganti sebelum '
+          'tebakan pertama.');
+      return;
+    }
+    setState(() {
+      _modeSulit = !_modeSulit;
+      if (game != null && game.tebakan.isEmpty) {
+        _game = WordleGame(
+          jawaban: game.jawaban,
+          kamus: game.kamus,
+          modeSulit: _modeSulit,
+        );
+      }
+      _pesan = _modeSulit
+          ? 'Mode sulit aktif: huruf yang sudah ketemu wajib dipakai lagi.'
+          : 'Mode sulit mati.';
+    });
+    _simpanStatistik();
   }
 
   void _gantiJenis(bool harian) {
@@ -150,6 +176,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
     _main = angkaAman(data['main']);
     _menang = angkaAman(data['menang']);
     _beruntun = angkaAman(data['beruntun']);
+    _modeSulit = data['sulit'] == true;
     // Data rusak/diedit manual: jaga supaya angkanya tetap masuk akal.
     if (_menang > _main) _menang = _main;
     if (_beruntun > _menang) _beruntun = _menang;
@@ -162,6 +189,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
       'main': _main,
       'menang': _menang,
       'beruntun': _beruntun,
+      'sulit': _modeSulit,
     });
   }
 
@@ -221,7 +249,8 @@ class _HalamanWordleState extends State<HalamanWordle> {
         if (jawaban == _game?.jawaban && kamus.jawaban.length > 1) {
           jawaban = kamus.acakJawaban(_random);
         }
-        _game = WordleGame(jawaban: jawaban, kamus: kamus);
+        _game = WordleGame(
+            jawaban: jawaban, kamus: kamus, modeSulit: _modeSulit);
       }
       _memuat = false;
     });
@@ -253,6 +282,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
     final game = WordleGame(
       jawaban: kataHarian(sekarang, _bahasa, kamus.jawaban),
       kamus: kamus,
+      modeSulit: _modeSulit,
     );
     for (final kata in _harianTebakan[_bahasa.kode] ?? const <String>[]) {
       if (game.selesai) break;
@@ -294,6 +324,9 @@ class _HalamanWordleState extends State<HalamanWordle> {
     }
 
     final error = game.tebak(_ketikan);
+    if (error == null) {
+      PengaturanScope.baca(context)?.getarkan(kuat: game.selesai);
+    }
     if (error == null && _harian) {
       (_harianTebakan[_bahasa.kode] ??= []).add(game.tebakan.last.$1);
       _simpanHarian();
@@ -406,6 +439,11 @@ class _HalamanWordleState extends State<HalamanWordle> {
                 label: 'Harian #${nomorHarian(widget.jam())}',
                 dipilih: _harian,
                 onTap: () => _gantiJenis(true),
+              ),
+              PilihanKaca(
+                label: 'Mode sulit',
+                dipilih: _modeSulit,
+                onTap: _gantiModeSulit,
               ),
             ],
           ),

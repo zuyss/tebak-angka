@@ -6,6 +6,7 @@ import 'halaman_angka.dart';
 import 'halaman_hacker.dart';
 import 'halaman_wordle.dart';
 import 'kaca.dart';
+import 'pengaturan.dart';
 import 'simpanan.dart';
 
 Future<void> main() async {
@@ -51,23 +52,34 @@ class _TebakAngkaAppState extends State<TebakAngkaApp> {
   /// (raster), bawah = Dart (UI). Batang merah = frame yang telat.
   bool _grafikPerforma = false;
 
+  late final Pengaturan _pengaturan = Pengaturan(simpanan: widget.simpanan);
+
+  @override
+  void dispose() {
+    _pengaturan.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.f3): () =>
-            setState(() => _grafikPerforma = !_grafikPerforma),
-      },
-      child: MaterialApp(
-        title: 'Tebak Angka',
-        debugShowCheckedModeBanner: false,
-        showPerformanceOverlay: _grafikPerforma,
-        theme: ThemeData(colorSchemeSeed: warnaHitam),
-        home: Beranda(
-          pemuatKamus: widget.pemuatKamus,
-          latarBergerak: widget.latarBergerak,
-          simpanan: widget.simpanan,
-          jam: widget.jam,
+    return PengaturanScope(
+      pengaturan: _pengaturan,
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.f3): () =>
+              setState(() => _grafikPerforma = !_grafikPerforma),
+        },
+        child: MaterialApp(
+          title: 'Tebak Angka',
+          debugShowCheckedModeBanner: false,
+          showPerformanceOverlay: _grafikPerforma,
+          theme: ThemeData(colorSchemeSeed: warnaHitam),
+          home: Beranda(
+            pemuatKamus: widget.pemuatKamus,
+            latarBergerak: widget.latarBergerak,
+            simpanan: widget.simpanan,
+            jam: widget.jam,
+          ),
         ),
       ),
     );
@@ -99,6 +111,25 @@ class _BerandaState extends State<Beranda> {
   // daftar kata Wordle nggak dimuat kalau nggak dimainkan.
   final Set<int> _pernahDibuka = {0};
 
+  /// Naik saat statistik dihapus: semua halaman dibangun ulang dari nol
+  /// (key-nya berubah), jadi angka di layar ikut kosong.
+  int _generasi = 0;
+
+  Future<void> _bukaPengaturan() async {
+    final pengaturan = PengaturanScope.baca(context);
+    if (pengaturan == null) return;
+    final hapus = await showDialog<bool>(
+      context: context,
+      builder: (context) => _DialogPengaturan(pengaturan: pengaturan),
+    );
+    if (hapus != true || !mounted) return;
+    pengaturan.hapusStatistik();
+    setState(() => _generasi++);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Statistik dihapus.')),
+    );
+  }
+
   String _sapaan() {
     final jamSekarang = widget.jam().hour;
     if (jamSekarang < 11) return 'Selamat pagi';
@@ -118,7 +149,8 @@ class _BerandaState extends State<Beranda> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: LatarBening(
-        bergerak: widget.latarBergerak,
+        bergerak: widget.latarBergerak &&
+            (PengaturanScope.dari(context)?.animasiLatar ?? true),
         child: SafeArea(
           child: Column(
             children: [
@@ -136,9 +168,14 @@ class _BerandaState extends State<Beranda> {
                 child: IndexedStack(
                   index: _halaman,
                   children: [
-                    HalamanAngka(simpanan: widget.simpanan, jam: widget.jam),
+                    HalamanAngka(
+                      key: ValueKey('angka-$_generasi'),
+                      simpanan: widget.simpanan,
+                      jam: widget.jam,
+                    ),
                     if (_pernahDibuka.contains(1))
                       HalamanWordle(
+                        key: ValueKey('wordle-$_generasi'),
                         pemuatKamus: widget.pemuatKamus,
                         aktif: _halaman == 1,
                         simpanan: widget.simpanan,
@@ -148,6 +185,7 @@ class _BerandaState extends State<Beranda> {
                       const SizedBox.shrink(),
                     if (_pernahDibuka.contains(2))
                       HalamanHacker(
+                        key: ValueKey('hacker-$_generasi'),
                         simpanan: widget.simpanan,
                         aktif: _halaman == 2,
                       )
@@ -187,6 +225,12 @@ class _BerandaState extends State<Beranda> {
       onGanti: _pindah,
     );
 
+    final tombolPengaturan = IconButton(
+      tooltip: 'Pengaturan',
+      icon: const Icon(Icons.settings_outlined, color: warnaTeks),
+      onPressed: _bukaPengaturan,
+    );
+
     return LayoutBuilder(
       builder: (context, batas) {
         if (batas.maxWidth >= 700) {
@@ -194,12 +238,18 @@ class _BerandaState extends State<Beranda> {
             children: [
               Expanded(child: judul),
               SizedBox(width: 400, child: menu),
+              const SizedBox(width: 8),
+              tombolPengaturan,
             ],
           );
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [judul, const SizedBox(height: 12), menu],
+          children: [
+            Row(children: [Expanded(child: judul), tombolPengaturan]),
+            const SizedBox(height: 12),
+            menu,
+          ],
         );
       },
     );
@@ -273,6 +323,83 @@ class _MenuSwitch extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Dialog pengaturan. Mengembalikan true kalau pemain memilih (dan
+/// mengonfirmasi) hapus statistik.
+class _DialogPengaturan extends StatelessWidget {
+  const _DialogPengaturan({required this.pengaturan});
+
+  final Pengaturan pengaturan;
+
+  Future<void> _konfirmasiHapus(BuildContext context) async {
+    final yakin = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus semua statistik?'),
+        content: const Text(
+          'Menang/kalah, rekor, riwayat ronde, statistik Wordle, dan skor '
+          'Hacker akan kembali ke nol. Ini nggak bisa dibatalkan. Progres '
+          'tantangan harian hari ini tetap tersimpan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (yakin == true && context.mounted) Navigator.pop(context, true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFFF8FAFC),
+      title: const Text('Pengaturan'),
+      contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
+      content: ListenableBuilder(
+        listenable: pengaturan,
+        builder: (context, _) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SwitchListTile(
+              title: const Text('Animasi latar'),
+              subtitle: const Text('Matikan kalau app terasa patah-patah.'),
+              value: pengaturan.animasiLatar,
+              onChanged: (v) => pengaturan.animasiLatar = v,
+            ),
+            SwitchListTile(
+              title: const Text('Getar'),
+              subtitle: const Text('Getar halus saat menebak (di HP).'),
+              value: pengaturan.getar,
+              onChanged: (v) => pengaturan.getar = v,
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
+              title: Text(
+                'Hapus semua statistik',
+                style: TextStyle(color: Colors.red.shade700),
+              ),
+              onTap: () => _konfirmasiHapus(context),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Tutup'),
+        ),
+      ],
     );
   }
 }

@@ -5,12 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tebak_angka/duel.dart';
 import 'package:tebak_angka/game.dart';
 import 'package:tebak_angka/halaman_angka.dart';
 import 'package:tebak_angka/hacker.dart';
 import 'package:tebak_angka/harian.dart';
+import 'package:tebak_angka/kaca.dart';
 import 'package:tebak_angka/komputer.dart';
 import 'package:tebak_angka/main.dart';
+import 'package:tebak_angka/pengaturan.dart';
 import 'package:tebak_angka/simpanan.dart';
 import 'package:tebak_angka/wordle.dart';
 
@@ -20,7 +23,7 @@ const besar = Level('Besar', 1, 101, 10); // rentang 100, enak buat hitung perse
 
 /// Kamus palsu untuk widget test, supaya nggak perlu baca file aset.
 Future<KamusWordle> kamusPalsu(Bahasa bahasa, int panjang) async =>
-    KamusWordle(jawaban: ['rumah'], valid: {'makan', 'rumah'});
+    KamusWordle(jawaban: ['rumah'], valid: {'makan', 'rumah', 'pohon'});
 
 void main() {
   group('parseTebakan', () {
@@ -253,6 +256,100 @@ void main() {
         });
       }
     }
+  });
+
+  group('Wordle mode sulit', () {
+    final kamus = KamusWordle(
+      jawaban: ['rumah'],
+      valid: {'makan', 'pohon', 'rumah', 'harum'},
+    );
+
+    test('huruf hijau wajib di posisinya, huruf kuning wajib dipakai', () {
+      // makan vs rumah: M kuning, A ke-4 hijau.
+      final sebelum = [('makan', nilaiTebakan('makan', 'rumah'))];
+      expect(cekModeSulit('pohon', sebelum), 'Mode sulit: huruf ke-4 harus A.');
+      expect(cekModeSulit('harum', sebelum), 'Mode sulit: huruf ke-4 harus A.');
+      expect(cekModeSulit('rumah', sebelum), isNull);
+      expect(cekModeSulit('pohan', sebelum),
+          'Mode sulit: tebakan harus memuat M.');
+    });
+
+    test('WordleGame menolak tebakan yang melanggar', () {
+      final game = WordleGame(jawaban: 'rumah', kamus: kamus, modeSulit: true);
+      expect(game.tebak('makan'), isNull);
+      expect(game.tebak('pohon'), 'Mode sulit: huruf ke-4 harus A.');
+      expect(game.tebakan.length, 1);
+      expect(game.tebak('rumah'), isNull);
+      expect(game.menang, isTrue);
+
+      final biasa = WordleGame(jawaban: 'rumah', kamus: kamus);
+      biasa.tebak('makan');
+      expect(biasa.tebak('pohon'), isNull);
+    });
+  });
+
+  group('duel', () {
+    test('giliran berurutan dan pemenang = percobaan paling sedikit', () {
+      final duel = Duel(nyawa: 10);
+      expect(duel.tahap, TahapDuel.rahasia1);
+      expect(duel.pemainAktif, 1);
+      duel.rahasiaSiap();
+      expect(duel.tahap, TahapDuel.tebak2);
+      expect(duel.pemainAktif, 2);
+      duel.selesaiMenebak(menang: true, percobaan: 5);
+      expect(duel.hasil, isNull);
+      duel.rahasiaSiap();
+      expect(duel.pemainAktif, 1);
+      duel.selesaiMenebak(menang: true, percobaan: 3);
+      expect(duel.tahap, TahapDuel.selesai);
+      expect(duel.hasil, HasilDuel.pemain1);
+      expect(duel.teksSkor(duel.skor2), '5 percobaan');
+    });
+
+    test('gagal menebak dihitung nyawa + 1, dan bisa seri', () {
+      final duel = Duel(nyawa: 7)
+        ..rahasiaSiap()
+        ..selesaiMenebak(menang: false, percobaan: 7)
+        ..rahasiaSiap()
+        ..selesaiMenebak(menang: false, percobaan: 7);
+      expect(duel.skor1, 8);
+      expect(duel.skor2, 8);
+      expect(duel.hasil, HasilDuel.seri);
+      expect(duel.teksSkor(duel.skor1), 'gagal');
+    });
+
+    test('urutan yang salah ditolak', () {
+      final duel = Duel(nyawa: 10);
+      expect(() => duel.selesaiMenebak(menang: true, percobaan: 1),
+          throwsStateError);
+      duel.rahasiaSiap();
+      expect(duel.rahasiaSiap, throwsStateError);
+    });
+  });
+
+  group('pengaturan', () {
+    test('tersimpan dan terbaca lagi', () {
+      final simpanan = SimpananMemori();
+      final p = Pengaturan(simpanan: simpanan)
+        ..animasiLatar = false
+        ..getar = false;
+      expect(p.animasiLatar, isFalse);
+      final lagi = Pengaturan(simpanan: simpanan);
+      expect(lagi.animasiLatar, isFalse);
+      expect(lagi.getar, isFalse);
+      expect(Pengaturan(simpanan: SimpananMemori()).animasiLatar, isTrue);
+    });
+
+    test('hapus statistik nggak menghapus progres harian', () {
+      final simpanan = SimpananMemori()
+        ..tulis('tebak_angka.v1', {'menang': 3})
+        ..tulis('hacker.v1', {'main': 1})
+        ..tulis('harian_angka.v1', {'tanggal': '2026-11-02'});
+      Pengaturan(simpanan: simpanan).hapusStatistik();
+      expect(simpanan.baca('tebak_angka.v1'), isNull);
+      expect(simpanan.baca('hacker.v1'), isNull);
+      expect(simpanan.baca('harian_angka.v1'), isNotNull);
+    });
   });
 
   group('komputer yang menebak', () {
@@ -718,6 +815,106 @@ void main() {
       await ketuk(tester, find.text('Hacker'));
       // Tingkat terakhir diingat.
       expect(find.textContaining('Rekor Pemula'), findsOneWidget);
+    });
+
+    testWidgets('duel tebak angka di layar $nama', (tester) async {
+      await aturLayar(tester, ukuran);
+      await ketuk(tester, find.text('Duel'));
+      await ketuk(tester, find.text('Mulai duel'));
+      expect(find.text('Pemain 1, bikin angka rahasia'), findsOneWidget);
+
+      Future<void> isi(String angka, String tombol) async {
+        await tester.enterText(find.byType(TextField), angka);
+        await ketuk(tester, find.text(tombol));
+      }
+
+      await isi('99', 'Kunci'); // di luar 1-50
+      expect(find.text('Angka harus di antara 1 dan 50.'), findsOneWidget);
+      await isi('7', 'Kunci');
+      expect(find.textContaining('Duel - Pemain 2 menebak'), findsOneWidget);
+      await isi('7', 'Tebak');
+      expect(find.text('Pemain 2, bikin angka rahasia'), findsOneWidget);
+
+      await isi('30', 'Kunci');
+      await isi('29', 'Tebak');
+      await isi('30', 'Tebak');
+      expect(find.text('Pemain 2 menang!'), findsOneWidget);
+      expect(find.text('Pemain 1: 2 percobaan   Pemain 2: 1 percobaan'),
+          findsOneWidget);
+      // Duel nggak masuk statistik solo.
+      expect(find.text('Selesaikan satu ronde, hasilnya muncul di sini.'),
+          findsOneWidget);
+    });
+
+    testWidgets('duel hacker di layar $nama', (tester) async {
+      await aturLayar(tester, ukuran);
+      await ketuk(tester, find.text('Hacker'));
+      await ketuk(tester, find.text('Duel 2 pemain'));
+
+      Future<void> isi(String angka, String tombol) async {
+        await tester.enterText(find.byType(TextField), angka);
+        await ketuk(tester, find.text(tombol));
+      }
+
+      await isi('1234', 'Kunci');
+      await isi('1234', 'Coba');
+      expect(find.textContaining('Pemain 2 membobol PIN 1234'), findsOneWidget);
+      await isi('5678', 'Kunci');
+      await isi('5678', 'Coba');
+      expect(find.textContaining('Seri!'), findsOneWidget);
+      expect(find.textContaining('Dibobol 0 dari 0'), findsOneWidget);
+    });
+
+    testWidgets('wordle mode sulit di layar $nama', (tester) async {
+      final simpanan = SimpananMemori();
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      await ketuk(tester, find.text('Wordle'));
+      await ketuk(tester, find.text('Mode sulit'));
+
+      Future<void> ketik(String kata) async {
+        for (final h in kata.split('')) {
+          await ketuk(tester, find.byKey(ValueKey('tombol-$h')));
+        }
+        await ketuk(tester, find.byKey(const ValueKey('tombol-enter')));
+      }
+
+      await ketik('makan');
+      await ketik('pohon');
+      expect(find.text('Mode sulit: huruf ke-4 harus A.'), findsOneWidget);
+
+      // Nggak bisa dimatikan di tengah permainan.
+      await ketuk(tester, find.text('Mode sulit'));
+      expect(find.text('Mode sulit cuma bisa diganti sebelum tebakan pertama.'),
+          findsOneWidget);
+
+      // Pilihan mode sulit diingat.
+      await bukaUlang(tester, simpanan);
+      await ketuk(tester, find.text('Wordle'));
+      final pilihan =
+          tester.widget<PilihanKaca>(find.widgetWithText(PilihanKaca, 'Mode sulit'));
+      expect(pilihan.dipilih, isTrue);
+    });
+
+    testWidgets('pengaturan dan hapus statistik di layar $nama',
+        (tester) async {
+      final simpanan = SimpananMemori();
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      await ketuk(tester, find.text('Komputer menebak'));
+      await ketuk(tester, find.text('Mulai'));
+      await ketuk(tester, find.text('Benar!'));
+      expect(find.text('Skor komputer: 1 menang, 0 kalah'), findsOneWidget);
+
+      await ketuk(tester, find.byTooltip('Pengaturan'));
+      await ketuk(tester, find.text('Animasi latar'));
+      expect(simpanan.baca('pengaturan.v1')?['animasiLatar'], isFalse);
+
+      await ketuk(tester, find.text('Hapus semua statistik'));
+      await ketuk(tester, find.text('Hapus'));
+      expect(find.text('Statistik dihapus.'), findsOneWidget);
+      expect(simpanan.baca('tebak_angka.v1'), isNull);
+
+      await ketuk(tester, find.text('Komputer menebak'));
+      expect(find.text('Skor komputer: 0 menang, 0 kalah'), findsOneWidget);
     });
 
     testWidgets('wordle di layar $nama', (tester) async {
