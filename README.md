@@ -1,8 +1,35 @@
 # Tebak Angka
 
-Game tebak angka berbasis terminal yang ditulis dengan Python. Ada dua mode: kamu menebak angka rahasia komputer dengan petunjuk "terlalu besar" atau "terlalu kecil", atau sebaliknya komputer yang menebak angka yang kamu pikirkan.
+> **Proyek vibecoding.** Kode di repo ini ditulis oleh AI (Claude dari Anthropic)
+> berdasarkan arahan saya. Lihat [Tentang proyek ini](#tentang-proyek-ini).
 
-## Fitur
+Kumpulan game tebak-tebakan dalam dua bentuk:
+
+- **Game terminal (Python)**: kamu menebak angka rahasia komputer dengan petunjuk
+  "terlalu besar" atau "terlalu kecil", atau sebaliknya komputer yang menebak angkamu.
+- **App web, Android, dan Windows (Flutter)**: tebak angka mode Panas-Dingin dan Detektif,
+  plus Wordle bahasa Indonesia dan Inggris. **Main langsung di browser:**
+  https://zuyss.github.io/tebak-angka/
+
+## Tentang proyek ini
+
+Ini proyek *vibecoding*: saya menentukan apa yang mau dibuat dan mengarahkan hasilnya,
+sedangkan kodenya ditulis oleh AI (Claude). Commit yang dibuat AI ditandai dengan baris
+`Co-Authored-By: Claude` di riwayat git.
+
+Bagian yang saya kerjakan:
+
+- Menentukan fitur dan arah tampilan (mode permainan, Wordle dua bahasa, tema kaca putih)
+- Mencoba app-nya langsung, lalu melaporkan masalah seperti tampilan yang
+  patah-patah dan kolom input yang kehilangan fokus
+- Menjalankan git, membaca log GitHub Actions saat build gagal, dan mengirimkannya ke AI
+- Memutuskan perubahan mana yang dipakai
+
+Yang saya pelajari dari proyek ini: alur kerja git dan GitHub Actions, cara membaca error
+build, dan bagaimana AI bisa salah (beberapa build sempat gagal karena kode dari AI) sehingga
+hasilnya tetap harus dites dan dicek.
+
+## Fitur (versi Python)
 
 - Tiga level kesulitan dengan rentang angka dan jumlah percobaan berbeda
 - Validasi input (menolak huruf dan angka di luar rentang)
@@ -42,8 +69,6 @@ otomatis lewat GitHub Actions pada Python 3.10 sampai 3.13.
 
 ## Versi App (Web, Android, dan Windows)
 
-**Main langsung di browser:** https://zuyss.github.io/tebak-angka/
-
 Folder `flutter_app/` berisi versi app dengan tampilan light glassmorphism dan dua game:
 
 - **Tebak Angka**, dengan dua mode:
@@ -80,10 +105,6 @@ flutter test
 flutter build apk --release      # hasil: build/app/outputs/flutter-apk/app-release.apk
 flutter build windows --release  # hasil: build/windows/x64/runner/Release/
 ```
-
-## Catatan
-
-Versi awal dibuat dengan bantuan AI; perbaikan dan fitur selanjutnya dikerjakan sendiri.
 
 ## Rencana Pengembangan
 
