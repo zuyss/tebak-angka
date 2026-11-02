@@ -4,10 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'halaman_angka.dart';
 import 'halaman_hacker.dart';
+import 'halaman_rahasia.dart';
 import 'halaman_wordle.dart';
 import 'kaca.dart';
 import 'pencapaian.dart';
 import 'pengaturan.dart';
+import 'rahasia.dart' show PelacakKonami, brankasTerbuka;
 import 'simpanan.dart';
 
 Future<void> main() async {
@@ -70,7 +72,7 @@ class _TebakAngkaAppState extends State<TebakAngkaApp> {
       child: PencapaianScope(
         pencapaian: _pencapaian,
         child: ListenableBuilder(
-          listenable: _pengaturan,
+          listenable: Listenable.merge([_pengaturan, _pencapaian]),
           builder: (context, _) => CallbackShortcuts(
             bindings: {
               const SingleActivator(LogicalKeyboardKey.f3): () =>
@@ -80,18 +82,29 @@ class _TebakAngkaAppState extends State<TebakAngkaApp> {
               title: context.tr('Tebak Angka', 'Number Guess'),
               debugShowCheckedModeBanner: false,
               showPerformanceOverlay: _grafikPerforma,
-              themeMode: _pengaturan.tema,
+              // Tema rahasia fosfor selalu gelap.
+              themeMode: _pengaturan.fosfor && _pencapaian.terbuka('arsip')
+                  ? ThemeMode.dark
+                  : _pengaturan.tema,
               theme: ThemeData(
                 colorSchemeSeed: const Color(0xFF0F172A),
                 extensions: const [Palet.terang],
               ),
-              darkTheme: ThemeData(
-                colorScheme: ColorScheme.fromSeed(
-                  seedColor: const Color(0xFF0F172A),
-                  brightness: Brightness.dark,
-                ),
-                extensions: const [Palet.gelap],
-              ),
+              darkTheme: _pengaturan.fosfor && _pencapaian.terbuka('arsip')
+                  ? ThemeData(
+                      colorScheme: ColorScheme.fromSeed(
+                        seedColor: const Color(0xFF4ADE80),
+                        brightness: Brightness.dark,
+                      ),
+                      extensions: const [Palet.fosfor],
+                    )
+                  : ThemeData(
+                      colorScheme: ColorScheme.fromSeed(
+                        seedColor: const Color(0xFF0F172A),
+                        brightness: Brightness.dark,
+                      ),
+                      extensions: const [Palet.gelap],
+                    ),
               home: Beranda(
                 pemuatKamus: widget.pemuatKamus,
                 latarBergerak: widget.latarBergerak,
@@ -125,7 +138,7 @@ class Beranda extends StatefulWidget {
 }
 
 class _BerandaState extends State<Beranda> {
-  int _halaman = 0; // 0 = Tebak Angka, 1 = Wordle, 2 = Hacker
+  int _halaman = 0; // 0 = Tebak Angka, 1 = Wordle, 2 = Hacker, 3 = root
 
   // Halaman dibangun saat pertama dibuka saja, biar app cepat terbuka dan
   // daftar kata Wordle nggak dimuat kalau nggak dimainkan.
@@ -134,6 +147,77 @@ class _BerandaState extends State<Beranda> {
   /// Naik saat statistik dihapus: semua halaman dibangun ulang dari nol
   /// (key-nya berubah), jadi angka di layar ikut kosong.
   int _generasi = 0;
+
+  // ---------- rahasia: kode lama dan brankas waktu ----------
+
+  final _konami = PelacakKonami();
+
+  /// Mode kacau: seluruh isi halaman dicerminkan.
+  bool _cermin = false;
+
+  /// Ketukan di salam setelah usapan bergantian jadi B lalu A.
+  String _ketukBerikut = 'b';
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_tanganiTombol);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_tanganiTombol);
+    super.dispose();
+  }
+
+  /// Dengar semua tombol (tanpa menghabiskannya) untuk kode lama.
+  bool _tanganiTombol(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final k = event.logicalKey;
+    final tombol = switch (k) {
+      LogicalKeyboardKey.arrowUp => 'u',
+      LogicalKeyboardKey.arrowDown => 'd',
+      LogicalKeyboardKey.arrowLeft => 'l',
+      LogicalKeyboardKey.arrowRight => 'r',
+      LogicalKeyboardKey.keyB => 'b',
+      LogicalKeyboardKey.keyA => 'a',
+      _ => null,
+    };
+    if (tombol != null) _masukkanKode(tombol);
+    return false;
+  }
+
+  void _masukkanKode(String tombol) {
+    if (!_konami.masukkan(tombol) || !mounted) return;
+    setState(() => _cermin = !_cermin);
+    bukaLencana(context, ['kacau']);
+  }
+
+  void _usapSalam(DragEndDetails d) {
+    final v = d.velocity.pixelsPerSecond;
+    if (v.distance < 150) return;
+    _ketukBerikut = 'b';
+    if (v.dx.abs() > v.dy.abs()) {
+      _masukkanKode(v.dx > 0 ? 'r' : 'l');
+    } else {
+      _masukkanKode(v.dy > 0 ? 'd' : 'u');
+    }
+  }
+
+  void _ketukSalam() {
+    final tombol = _ketukBerikut;
+    _ketukBerikut = tombol == 'b' ? 'a' : 'b';
+    _masukkanKode(tombol);
+  }
+
+  /// Brankas waktu: tahan salam di menit yang tepat, setelah ular terbuka.
+  void _tahanSalam() {
+    final p = PencapaianScope.baca(context);
+    if (p == null || !p.terbuka('ular') || p.terbuka('brankas')) return;
+    if (!brankasTerbuka(widget.jam())) return;
+    bukaLencana(context, ['brankas']);
+    _pindah(3);
+  }
 
   Future<void> _bukaPengaturan() async {
     final pengaturan = PengaturanScope.baca(context);
@@ -185,7 +269,9 @@ class _BerandaState extends State<Beranda> {
               ),
               Expanded(
                 // IndexedStack: pindah halaman nggak menghapus progres.
-                child: IndexedStack(
+                child: Transform.flip(
+                  flipX: _cermin,
+                  child: IndexedStack(
                   index: _halaman,
                   children: [
                     HalamanAngka(
@@ -211,7 +297,16 @@ class _BerandaState extends State<Beranda> {
                       )
                     else
                       const SizedBox.shrink(),
+                    if (_pernahDibuka.contains(3))
+                      HalamanRahasia(
+                        key: ValueKey('rahasia-$_generasi'),
+                        simpanan: widget.simpanan,
+                        aktif: _halaman == 3,
+                      )
+                    else
+                      const SizedBox.shrink(),
                   ],
+                  ),
                 ),
               ),
             ],
@@ -222,7 +317,13 @@ class _BerandaState extends State<Beranda> {
   }
 
   Widget _header() {
-    final judul = Column(
+    final judul = GestureDetector(
+      key: const ValueKey('salam'),
+      behavior: HitTestBehavior.opaque,
+      onPanEnd: _usapSalam,
+      onTap: _ketukSalam,
+      onLongPress: _tahanSalam,
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -238,10 +339,18 @@ class _BerandaState extends State<Beranda> {
           style: TextStyle(color: context.palet.teksRedup),
         ),
       ],
+      ),
     );
+    final adaRahasia =
+        PencapaianScope.dari(context)?.adaGameRahasia ?? false;
     final menu = _MenuSwitch(
-      pilihan: [context.tr('Tebak Angka', 'Number Guess'), 'Wordle', 'Hacker'],
-      indeks: _halaman,
+      pilihan: [
+        context.tr('Tebak Angka', 'Number Guess'),
+        'Wordle',
+        'Hacker',
+        if (adaRahasia) 'root',
+      ],
+      indeks: adaRahasia ? _halaman : _halaman.clamp(0, 2),
       onGanti: _pindah,
     );
 
@@ -270,7 +379,7 @@ class _BerandaState extends State<Beranda> {
           return Row(
             children: [
               Expanded(child: judul),
-              SizedBox(width: 400, child: menu),
+              SizedBox(width: adaRahasia ? 480 : 400, child: menu),
               const SizedBox(width: 8),
               tombolPengaturan,
             ],
@@ -346,7 +455,11 @@ class _MenuSwitch extends StatelessWidget {
                                 i == indeks ? FontWeight.w800 : FontWeight.w600,
                             color: i == indeks ? context.palet.teks : context.palet.teksRedup,
                           ),
-                          child: Text(pilihan[i]),
+                          // FittedBox: label panjang mengecil, nggak meluber.
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(pilihan[i], maxLines: 1),
+                          ),
                         ),
                       ),
                     ),
@@ -441,6 +554,14 @@ class _DialogPengaturan extends StatelessWidget {
                     pengaturan.inggris = pilihan.first,
               ),
             ),
+            if (PencapaianScope.dari(context)?.terbuka('arsip') ?? false)
+              SwitchListTile(
+                title: Text(context.tr('Tema Fosfor', 'Phosphor theme')),
+                subtitle: Text(context.tr('Hadiah arsip tersembunyi.',
+                    'Reward from the hidden archive.')),
+                value: pengaturan.fosfor,
+                onChanged: (v) => pengaturan.fosfor = v,
+              ),
             SwitchListTile(
               title: Text(context.tr('Animasi latar', 'Background animation')),
               subtitle: Text(context.tr('Matikan kalau app terasa patah-patah.', 'Turn off if the app feels choppy.')),
@@ -498,7 +619,7 @@ class _DialogPencapaian extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Text(
-                    context.tr('Tantangan harian beruntun: ${p!.harianBeruntun} hari', 'Daily challenge streak: ${p!.harianBeruntun} days'),
+                    context.tr('Tantangan harian beruntun: ${p!.harianBeruntun} hari', 'Daily challenge streak: ${p.harianBeruntun} days'),
                     style: TextStyle(color: context.palet.teksRedup),
                   ),
                 ),
@@ -518,6 +639,50 @@ class _DialogPencapaian extends StatelessWidget {
                   ),
                   title: Text(
                     context.tr(l.judul, l.judulEn),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: (p?.terbuka(l.id) ?? false)
+                          ? context.palet.teks
+                          : context.palet.teksRedup,
+                    ),
+                  ),
+                  subtitle: Text(context.tr(l.syarat, l.syaratEn)),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    context.tr(
+                        'Rahasia (${p?.jumlahRahasiaTerbuka ?? 0}/${daftarLencanaRahasia.length})',
+                        'Secrets (${p?.jumlahRahasiaTerbuka ?? 0}/${daftarLencanaRahasia.length})'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: context.palet.teks,
+                    ),
+                  ),
+                ),
+              ),
+              for (final l in daftarLencanaRahasia)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: (p?.terbuka(l.id) ?? false)
+                        ? context.palet.aksen
+                        : context.palet.garisHalus,
+                    child: Icon(
+                      (p?.terbuka(l.id) ?? false)
+                          ? l.ikon
+                          : Icons.question_mark,
+                      color: (p?.terbuka(l.id) ?? false)
+                          ? context.palet.diAtasAksen
+                          : context.palet.teksRedup,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(
+                    (p?.terbuka(l.id) ?? false)
+                        ? context.tr(l.judul, l.judulEn)
+                        : '???',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: (p?.terbuka(l.id) ?? false)

@@ -8,6 +8,7 @@ import 'harian.dart';
 import 'kaca.dart';
 import 'pencapaian.dart';
 import 'pengaturan.dart';
+import 'rahasia.dart' show kataKunci;
 import 'simpanan.dart';
 import 'wordle.dart';
 
@@ -325,10 +326,33 @@ class _HalamanWordleState extends State<HalamanWordle> {
       return;
     }
 
+    // Rahasia: kata kunci akses root, diketik di Wordle bahasa Indonesia.
+    final pencapaian = PencapaianScope.baca(context);
+    if (!_harian &&
+        _bahasa == Bahasa.id &&
+        pencapaian != null &&
+        !pencapaian.terbuka('root') &&
+        kataKunci(_ketikan)) {
+      setState(() {
+        _ketikan = '';
+        _pesan = context.tr('AKSES ROOT DIBERIKAN. Ada menu baru di atas.',
+            'ROOT ACCESS GRANTED. There is a new menu at the top.');
+      });
+      bukaLencana(context, ['root']);
+      return;
+    }
+
     final error = game.tebak(_ketikan);
     if (error == null) {
       PengaturanScope.baca(context)?.getarkan(kuat: game.selesai);
     }
+    // Rahasia: menang di tebakan terakhir memberi fragmen arsip.
+    final fragmen = error == null &&
+            game.menang &&
+            !_harian &&
+            game.tebakan.length == maksTebakan
+        ? catatFragmen(context, 'wordle')
+        : null;
     if (error == null && _harian) {
       (_harianTebakan[_bahasa.kode] ??= []).add(game.tebakan.last.$1);
       _simpanHarian();
@@ -350,6 +374,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
           _menang++;
           _beruntun++;
           _pesan = context.tr('Mantap! Ketebak dalam ${game.tebakan.length} tebakan.', 'Nice! Solved in ${game.tebakan.length} guesses.');
+          if (fragmen != null) _pesan = '$_pesan $fragmen';
         } else {
           _beruntun = 0;
           _pesan = context.tr('Jawabannya ${game.jawaban.toUpperCase()}.', 'The answer was ${game.jawaban.toUpperCase()}.');

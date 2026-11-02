@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -15,6 +16,7 @@ import 'package:tebak_angka/komputer.dart';
 import 'package:tebak_angka/main.dart';
 import 'package:tebak_angka/pencapaian.dart';
 import 'package:tebak_angka/pengaturan.dart';
+import 'package:tebak_angka/rahasia.dart';
 import 'package:tebak_angka/simpanan.dart';
 import 'package:tebak_angka/wordle.dart';
 
@@ -376,6 +378,143 @@ void main() {
       Pencapaian(simpanan: simpanan).buka('duel_pertama');
       Pengaturan(simpanan: simpanan).hapusStatistik();
       expect(Pencapaian(simpanan: simpanan).terbuka('duel_pertama'), isTrue);
+    });
+  });
+
+  group('rahasia', () {
+    test('tepat satu PIN 5 digit membuka transmisi, isinya menunjuk Wordle', () {
+      final cocok = <String>[];
+      for (var i = 0; i < 100000; i++) {
+        final pin = i.toString().padLeft(5, '0');
+        if (bukaPetunjuk(pin) != null) cocok.add(pin);
+      }
+      expect(cocok, hasLength(1));
+      final pesan = utf8.decode(base64.decode(bukaPetunjuk(cocok.single)!));
+      expect(pesan, contains('wordle'));
+      // Kata kuncinya ada di pesan itu.
+      final kata = pesan.split(':').last.trim();
+      expect(kataKunci(kata), isTrue);
+      expect(kataKunci('rumah'), isFalse);
+    });
+
+    test('pesan berantai bisa dibaca setelah dipecahkan', () {
+      expect(geserCaesar(pesanUlar.id, 13), contains('ular'));
+      expect(geserCaesar(pesanUlar.en, 13), contains('snake'));
+      final brankas = String.fromCharCodes(pesanBrankas.id.codeUnits.reversed);
+      expect(brankas, contains('brankas'));
+      expect(String.fromCharCodes(pesanBrankas.en.codeUnits.reversed),
+          contains('vault'));
+    });
+
+    test('brankas cuma terbuka satu menit sehari', () {
+      var jumlah = 0;
+      for (var j = 0; j < 24; j++) {
+        for (var m = 0; m < 60; m++) {
+          if (brankasTerbuka(DateTime(2026, 11, 2, j, m))) jumlah++;
+        }
+      }
+      expect(jumlah, 1);
+    });
+
+    test('kode arsip = fragmen digabung sesuai nomor', () {
+      expect(kodeArsip(fragmenArsip.values.join()), isTrue);
+      expect(kodeArsip('123456'), isFalse);
+      expect(nomorFragmen('angka'), 1);
+      expect(nomorFragmen('hacker'), 3);
+      expect(cocokUlar([1, 2, 3, 4, 5]), isFalse);
+    });
+
+    test('geser caesar', () {
+      expect(geserCaesar('abc', 3), 'def');
+      expect(geserCaesar('xyz', 3), 'abc');
+      expect(geserCaesar('def', -3), 'abc');
+      expect(geserCaesar('a-b c', 27), 'b-c d');
+    });
+
+    test('pemecah sandi: skor, petunjuk, nyawa', () {
+      final g = SandiGame(random: Random(3));
+      final soal1 = g.asli;
+      expect(geserCaesar(g.sandi, -g.geser), soal1);
+      expect(g.jawab(soal1.toUpperCase()), isTrue);
+      expect(g.skor, 2);
+      expect(g.asli, isNot(soal1));
+      g.lihatGeser();
+      expect(g.jawab(g.asli), isTrue);
+      expect(g.skor, 3);
+      expect(g.beruntun, 2);
+      for (var i = 0; i < 3; i++) {
+        expect(g.jawab('salah'), isFalse);
+      }
+      expect(g.selesai, isTrue);
+      expect(() => g.jawab('x'), throwsStateError);
+    });
+
+    test('ular: makan, nggak bisa putar balik, tabrak dinding', () {
+      final g = UlarGame(lebar: 10, tinggi: 5, random: Random(1));
+      expect(g.badan.first, (x: 4, y: 2));
+      g.makanan = (x: 5, y: 2);
+      expect(g.langkah(), isTrue);
+      expect(g.panjang, 4);
+      expect(g.dimakan, 1);
+      g.belok(ArahUlar.kiri); // putar balik: diabaikan
+      g.langkah();
+      expect(g.badan.first, (x: 6, y: 2));
+      for (var i = 0; i < 10 && !g.selesai; i++) {
+        g.langkah();
+      }
+      expect(g.selesai, isTrue);
+      expect(g.badan.first.x, 9);
+    });
+
+    test('ular: tabrak badan sendiri', () {
+      final g = UlarGame(lebar: 10, tinggi: 10, random: Random(2));
+      // Panjangkan dulu jadi 5 supaya bisa melingkar menabrak badan.
+      g.makanan = (x: 5, y: 5);
+      g.langkah();
+      g.makanan = (x: 6, y: 5);
+      g.langkah();
+      g.makanan = (x: 0, y: 0);
+      g.belok(ArahUlar.bawah);
+      g.langkah();
+      g.belok(ArahUlar.kiri);
+      g.langkah();
+      g.belok(ArahUlar.atas);
+      g.langkah();
+      expect(g.selesai, isTrue);
+    });
+
+    test('kode lama dikenali, masukan berlebih di depan nggak masalah', () {
+      final k = PelacakKonami();
+      final hasil = ['u', 'x', ...PelacakKonami.urutan].map(k.masukkan).toList();
+      expect(hasil.last, isTrue);
+      expect(hasil.where((b) => b), hasLength(1));
+      // Setelah cocok, mulai dari nol lagi.
+      expect(k.masukkan('a'), isFalse);
+    });
+
+    test('lencana rahasia dan fragmen tersimpan terpisah', () {
+      final simpanan = SimpananMemori();
+      final p = Pencapaian(simpanan: simpanan);
+      expect(p.adaGameRahasia, isFalse);
+      expect(p.buka('root')?.judul, 'Akses root');
+      expect(p.jumlahTerbuka, 0);
+      expect(p.jumlahRahasiaTerbuka, 1);
+      expect(p.adaGameRahasia, isTrue);
+      expect(p.tambahFragmen('angka'), isTrue);
+      expect(p.tambahFragmen('angka'), isFalse);
+      expect(p.tambahFragmen('nggak_ada'), isFalse);
+      final lagi = Pencapaian(simpanan: simpanan);
+      expect(lagi.terbuka('root'), isTrue);
+      expect(lagi.fragmen, {'angka'});
+      expect(lagi.fragmenLengkap, isFalse);
+      lagi.tambahFragmen('wordle');
+      lagi.tambahFragmen('hacker');
+      expect(lagi.fragmenLengkap, isTrue);
+    });
+
+    test('id lencana unik termasuk yang rahasia', () {
+      final id = [...daftarLencana, ...daftarLencanaRahasia].map((l) => l.id);
+      expect(id.toSet().length, id.length);
     });
   });
 
@@ -1092,6 +1231,110 @@ void main() {
       // Papan kosong lagi: sel yang sudah dinilai hilang.
       expect(find.byKey(const ValueKey('sel-0-0')), findsNothing);
       expect(find.text('Main 1   Menang 1   Beruntun 1'), findsOneWidget);
+    });
+
+    testWidgets('menu root dan pemecah sandi di layar $nama', (tester) async {
+      final simpanan = SimpananMemori();
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      expect(find.text('root'), findsNothing);
+
+      Pencapaian(simpanan: simpanan).buka('root');
+      await bukaUlang(tester, simpanan);
+      await ketuk(tester, find.text('root'));
+      expect(find.text('Pemecah Sandi'), findsOneWidget);
+      expect(find.text('???'), findsNWidgets(2)); // ular dan brankas terkunci
+
+      await ketuk(tester, find.text('Lihat geser (poin jadi 1)'));
+      final geser = int.parse(tester
+          .widget<Text>(find.textContaining('geser = '))
+          .data!
+          .split('= ')
+          .last);
+      final sandi =
+          tester.widget<Text>(find.byKey(const ValueKey('teks-sandi'))).data!;
+      final asli = geserCaesar(sandi, -geser);
+      await tester.enterText(find.byType(TextField), asli);
+      await ketuk(tester, find.text('Kirim'));
+      expect(find.text('Benar: $asli'), findsOneWidget);
+      expect(find.textContaining('skor 1'), findsOneWidget);
+    });
+
+    testWidgets('game ular dan brankas bisa dibuka di layar $nama',
+        (tester) async {
+      final simpanan = SimpananMemori();
+      Pencapaian(simpanan: simpanan)
+        ..buka('ular')
+        ..buka('brankas');
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      await ketuk(tester, find.text('root'));
+      // Pemecah sandi masih terkunci, jadi yang tampil duluan ular.
+      expect(find.text('Ular'), findsOneWidget);
+      expect(find.text('Mulai'), findsOneWidget);
+      // Selama ular berjalan, pakai pump biasa: pumpAndSettle baru berhenti
+      // setelah ularnya menabrak dinding.
+      await tester.ensureVisible(find.text('Mulai'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mulai'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Jeda'), findsOneWidget);
+      await tester.tap(find.text('Jeda'));
+      await tester.pumpAndSettle();
+      expect(find.text('Mulai'), findsOneWidget);
+
+      await ketuk(tester, find.text('Brankas Waktu'));
+      expect(find.byKey(const ValueKey('layar-brankas')), findsOneWidget);
+      await tester.ensureVisible(find.text('Mulai'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mulai'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.tap(find.text('Stop'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Meleset'), findsOneWidget);
+    });
+
+    testWidgets('bisikan di terminal hacker di layar $nama', (tester) async {
+      await aturLayar(tester, ukuran);
+      await ketuk(tester, find.text('Hacker'));
+      expect(find.textContaining('1337'), findsNothing);
+      for (var i = 0; i < 5; i++) {
+        await tester.tap(find.byKey(const ValueKey('judul-terminal')));
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pumpAndSettle();
+      expect(find.textContaining('1337'), findsOneWidget);
+    });
+
+    testWidgets('kode lama mencerminkan layar di layar $nama', (tester) async {
+      final simpanan = SimpananMemori();
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      for (final k in [
+        LogicalKeyboardKey.arrowUp,
+        LogicalKeyboardKey.arrowUp,
+        LogicalKeyboardKey.arrowDown,
+        LogicalKeyboardKey.arrowDown,
+        LogicalKeyboardKey.arrowLeft,
+        LogicalKeyboardKey.arrowRight,
+        LogicalKeyboardKey.arrowLeft,
+        LogicalKeyboardKey.arrowRight,
+        LogicalKeyboardKey.keyB,
+        LogicalKeyboardKey.keyA,
+      ]) {
+        await tester.sendKeyEvent(k);
+      }
+      await tester.pumpAndSettle();
+      expect(Pencapaian(simpanan: simpanan).terbuka('kacau'), isTrue);
+    });
+
+    testWidgets('tema fosfor setelah arsip terbuka di layar $nama',
+        (tester) async {
+      final simpanan = SimpananMemori();
+      Pencapaian(simpanan: simpanan).buka('arsip');
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      Palet paletSekarang() => tester.element(find.byType(Beranda)).palet;
+      await ketuk(tester, find.byTooltip('Pengaturan'));
+      await ketuk(tester, find.text('Tema Fosfor'));
+      await ketuk(tester, find.text('Tutup'));
+      expect(paletSekarang(), same(Palet.fosfor));
     });
 
     testWidgets('statistik wordle tersimpan di layar $nama', (tester) async {

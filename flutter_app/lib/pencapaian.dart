@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 
 import 'pengaturan.dart';
+import 'rahasia.dart' show fragmenArsip, nomorFragmen;
 import 'simpanan.dart';
 
 class Lencana {
@@ -67,14 +68,39 @@ const List<Lencana> daftarLencana = [
       'Finish a 2-player duel.'),
 ];
 
+/// Lencana rahasia: tampil sebagai "???" sampai terbuka. Kolom syarat
+/// berisi petunjuk samar, bukan syarat yang sebenarnya.
+const List<Lencana> daftarLencanaRahasia = [
+  Lencana('root', Icons.terminal, 'Akses root',
+      'Terminal itu peka sentuhan. Coba lima kali, cepat.', 'Root access',
+      'The terminal is touch-sensitive. Try five times, fast.'),
+  Lencana('ular', Icons.gesture, 'Pawang ular',
+      'Pecahkan cukup banyak sandi, lalu baca pesannya baik-baik.',
+      'Snake charmer', 'Crack enough ciphers, then read the message carefully.'),
+  Lencana('brankas', Icons.lock_clock, 'Penjaga waktu',
+      'Ular yang cukup panjang tahu jam berapa.', 'Timekeeper',
+      'A long enough snake knows what time it is.'),
+  Lencana('arsip', Icons.inventory_2_outlined, 'Arsip tersembunyi',
+      'Menang di napas terakhir, di tiga tempat berbeda.', 'Hidden archive',
+      'Win on your very last breath, in three different places.'),
+  Lencana('kacau', Icons.flip, 'Kode lama',
+      'Kode tua dari zaman konsol. Di HP: usap salamnya.', 'Old code',
+      'An old code from the console era. On phones: swipe the greeting.'),
+];
+
 class Pencapaian extends ChangeNotifier {
   Pencapaian({this.simpanan}) {
     final data = simpanan?.baca(_kunci);
     if (data == null) return;
     final terbuka = data['terbuka'];
     if (terbuka is List) {
-      final idSah = {for (final b in daftarLencana) b.id};
+      final idSah = {for (final b in _semua) b.id};
       _terbuka.addAll(terbuka.whereType<String>().where(idSah.contains));
+    }
+    final fragmen = data['fragmen'];
+    if (fragmen is List) {
+      _fragmen.addAll(
+          fragmen.whereType<String>().where(fragmenArsip.containsKey));
     }
     final terakhir = data['harianTerakhir'];
     if (terakhir is String) _harianTerakhir = terakhir;
@@ -84,18 +110,43 @@ class Pencapaian extends ChangeNotifier {
   final Simpanan? simpanan;
   static const _kunci = 'pencapaian.v1';
 
+  static const _semua = [...daftarLencana, ...daftarLencanaRahasia];
+
   final Set<String> _terbuka = {};
+  final Set<String> _fragmen = {};
   String? _harianTerakhir;
   int _harianBeruntun = 0;
 
   bool terbuka(String id) => _terbuka.contains(id);
-  int get jumlahTerbuka => _terbuka.length;
+  /// Jumlah lencana biasa yang terbuka (lencana rahasia dihitung terpisah).
+  int get jumlahTerbuka =>
+      daftarLencana.where((l) => _terbuka.contains(l.id)).length;
+  int get jumlahRahasiaTerbuka =>
+      daftarLencanaRahasia.where((l) => _terbuka.contains(l.id)).length;
+
+  /// Apakah ada game rahasia yang sudah terbuka (menu "root" muncul).
+  bool get adaGameRahasia =>
+      _terbuka.contains('root') ||
+      _terbuka.contains('ular') ||
+      _terbuka.contains('brankas');
+
+  /// Fragmen kode arsip yang sudah ditemukan.
+  Set<String> get fragmen => Set.unmodifiable(_fragmen);
+  bool get fragmenLengkap => _fragmen.length == fragmenArsip.length;
+
+  /// Simpan fragmen [id]. True kalau baru ditemukan sekarang.
+  bool tambahFragmen(String id) {
+    if (!fragmenArsip.containsKey(id) || !_fragmen.add(id)) return false;
+    _simpan();
+    notifyListeners();
+    return true;
+  }
   int get harianBeruntun => _harianBeruntun;
 
   /// Buka badge [id]. Kembalikan badge-nya kalau baru terbuka sekarang,
   /// null kalau sudah terbuka sebelumnya (atau id-nya nggak dikenal).
   Lencana? buka(String id) {
-    final badge = daftarLencana.where((b) => b.id == id).firstOrNull;
+    final badge = _semua.where((b) => b.id == id).firstOrNull;
     if (badge == null || !_terbuka.add(id)) return null;
     _simpan();
     notifyListeners();
@@ -139,6 +190,7 @@ class Pencapaian extends ChangeNotifier {
       'terbuka': _terbuka.toList(),
       'harianTerakhir': _harianTerakhir,
       'harianBeruntun': _harianBeruntun,
+      'fragmen': _fragmen.toList(),
     });
   }
 }
@@ -195,6 +247,23 @@ void bukaLencana(BuildContext context, List<String> id) {
   final p = PencapaianScope.baca(context);
   if (p == null) return;
   umumkanLencana(context, [for (final i in id) p.buka(i)]);
+}
+
+/// Helper untuk halaman: catat fragmen arsip [id]. Kembalikan teks
+/// pengumumannya kalau fragmen ini baru ditemukan, null kalau sudah pernah.
+String? catatFragmen(BuildContext context, String id) {
+  final p = PencapaianScope.baca(context);
+  if (p == null || !p.tambahFragmen(id)) return null;
+  final nomor = nomorFragmen(id);
+  final kode = fragmenArsip[id];
+  final n = fragmenArsip.length;
+  return p.fragmenLengkap
+      ? context.tr(
+          '[fragmen $nomor/$n: $kode] Semua fragmen terkumpul. Gabungkan '
+              'sesuai nomornya. Angka sebesar itu ditolak di mana, ya?',
+          '[fragment $nomor/$n: $kode] All fragments found. Join them in '
+              'order. Where would a number that big get rejected?')
+      : context.tr('[fragmen $nomor/$n: $kode]', '[fragment $nomor/$n: $kode]');
 }
 
 /// Helper untuk halaman: catat tantangan harian yang selesai.

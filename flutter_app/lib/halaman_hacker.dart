@@ -6,6 +6,7 @@ import 'hacker.dart';
 import 'kaca.dart';
 import 'pencapaian.dart';
 import 'pengaturan.dart';
+import 'rahasia.dart' show bukaPetunjuk;
 import 'simpanan.dart';
 
 const _mono = TextStyle(
@@ -41,6 +42,42 @@ class _HalamanHackerState extends State<HalamanHacker> {
   final Map<String, int> _rekor = {}; // nama tingkat -> percobaan tersedikit
 
   static const _kunciSimpanan = 'hacker.v1';
+
+  // ---------- rahasia ----------
+
+  /// Ketukan di baris judul terminal: 5 ketukan cepat memunculkan bisikan.
+  final List<DateTime> _ketukan = [];
+  bool _bisikan = false;
+
+  /// Transmisi base64 yang muncul setelah kode yang benar dimasukkan.
+  String? _transmisi;
+
+  /// Pengumuman fragmen arsip (menang di percobaan terakhir).
+  String? _infoFragmen;
+
+  void _ketukJudul() {
+    final sekarang = DateTime.now();
+    _ketukan
+      ..add(sekarang)
+      ..removeWhere((t) => sekarang.difference(t) > const Duration(seconds: 3));
+    if (_ketukan.length >= 5 && !_bisikan) {
+      setState(() => _bisikan = true);
+    }
+  }
+
+  /// Cek kode rahasia di tingkat Elite. True kalau masukan dipakai rahasia.
+  bool _cekKodeRahasia() {
+    if (_modeDuel || _tingkat != daftarTingkatHacker.last) return false;
+    final transmisi = bukaPetunjuk(_input.text.trim());
+    if (transmisi == null) return false;
+    setState(() {
+      _transmisi = transmisi;
+      _input.clear();
+      _pesan = null;
+    });
+    _fokus.requestFocus();
+    return true;
+  }
 
   // ---------- duel ----------
 
@@ -139,6 +176,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
       if (tingkat != null) _tingkat = tingkat;
       _game = HackerGame(_tingkat);
       _pesan = null;
+      _infoFragmen = null;
       _input.clear();
       _inputPin.clear();
       _duel = _modeDuel ? Duel(nyawa: _tingkat.nyawa) : null;
@@ -156,6 +194,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
       _baru();
       return;
     }
+    if (_cekKodeRahasia()) return;
     final error = game.tebak(_input.text);
     if (error == null) {
       PengaturanScope.baca(context)?.getarkan(kuat: game.selesai);
@@ -194,9 +233,14 @@ class _HalamanHackerState extends State<HalamanHacker> {
       return;
     }
 
+    // Rahasia: membobol PIN di percobaan terakhir memberi fragmen arsip.
+    final fragmen = game.menang && game.sisa == 0
+        ? catatFragmen(context, 'hacker')
+        : null;
     setState(() {
       _input.clear();
       _pesan = null;
+      if (fragmen != null) _infoFragmen = fragmen;
       if (game.selesai) {
         _main++;
         if (game.menang) {
@@ -317,10 +361,38 @@ class _HalamanHackerState extends State<HalamanHacker> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            '\$ bobol --pin ${'*' * p}   sisa ${game.sisa}/${_tingkat.nyawa}',
-            style: _mono.copyWith(color: _redupTerminal, fontSize: 13),
+          GestureDetector(
+            key: const ValueKey('judul-terminal'),
+            behavior: HitTestBehavior.opaque,
+            onTap: _ketukJudul,
+            child: Text(
+              '\$ bobol --pin ${'*' * p}   sisa ${game.sisa}/${_tingkat.nyawa}',
+              style: _mono.copyWith(color: _redupTerminal, fontSize: 13),
+            ),
           ),
+          if (_bisikan) ...[
+            const SizedBox(height: 6),
+            Text(
+              context.tr(
+                  '// psst. hacker elite nggak ngomong, mereka 1337. '
+                      'tapi brankas elite butuh lima digit, dan diawali tiga.',
+                  '// psst. elite hackers don\'t talk, they 1337. '
+                      'but an elite vault needs five digits, starting with three.'),
+              style: _mono.copyWith(color: const Color(0x66FFFFFF), fontSize: 12),
+            ),
+          ],
+          if (_transmisi != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              context.tr('>> transmisi masuk:', '>> incoming transmission:'),
+              style: _mono.copyWith(color: _hijauTerminal, fontSize: 13),
+            ),
+            const SizedBox(height: 4),
+            SelectableText(
+              _transmisi!,
+              style: _mono.copyWith(color: _hijauTerminal, fontSize: 13),
+            ),
+          ],
           const SizedBox(height: 12),
           for (final (tebakan, hasil) in game.riwayat)
             Padding(
@@ -350,6 +422,13 @@ class _HalamanHackerState extends State<HalamanHacker> {
             Text(
               _infoDuel!,
               style: _mono.copyWith(color: Colors.white),
+            ),
+          ],
+          if (_infoFragmen != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _infoFragmen!,
+              style: _mono.copyWith(color: _hijauTerminal),
             ),
           ],
           if (game.selesai && !_modeDuel) ...[

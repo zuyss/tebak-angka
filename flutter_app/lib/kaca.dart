@@ -132,6 +132,34 @@ class Palet extends ThemeExtension<Palet> {
     tepiKacaGelap: [Color(0x40FFFFFF), Color(0x0DFFFFFF), Color(0x26FFFFFF)],
   );
 
+  /// Tema rahasia (hadiah arsip tersembunyi): fosfor hijau ala terminal.
+  static const fosfor = Palet(
+    teks: Color(0xFFB7F7C4),
+    teksRedup: Color(0x99B7F7C4),
+    aksen: Color(0xFF4ADE80),
+    diAtasAksen: Color(0xFF02140A),
+    garisHalus: Color(0x264ADE80),
+    jalur: Color(0x334ADE80),
+    isi: Color(0x144ADE80),
+    isiPilihan: Color(0x0F4ADE80),
+    tepi: Color(0x4D4ADE80),
+    permukaan: Color(0xFF0A2414),
+    dialog: Color(0xFF04130A),
+    kotakKosong: Color(0x0D4ADE80),
+    kotakTerisi: Color(0x264ADE80),
+    latarDasar: [Color(0xFF010A05), Color(0xFF03140A), Color(0xFF000703)],
+    latarBayangan: [
+      Color(0xFF0B3D1E),
+      Color(0xFF14361F),
+      Color(0xFF06301A),
+      Color(0xFF1A3B12),
+    ],
+    kaca: [Color(0x1A4ADE80), Color(0x084ADE80)],
+    tepiKaca: [Color(0x664ADE80), Color(0x0D4ADE80), Color(0x40000000)],
+    kacaGelap: [Color(0xF5000A04), Color(0xEB03170B)],
+    tepiKacaGelap: [Color(0x594ADE80), Color(0x0D4ADE80), Color(0x264ADE80)],
+  );
+
   @override
   Palet copyWith() => this;
 

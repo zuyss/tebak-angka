@@ -102,6 +102,13 @@ Ada **16 pencapaian** (ikon piala) yang terbuka saat kamu melakukan sesuatu, mis
 menang dalam 1 tebakan, menyelesaikan tantangan harian 7 hari berturut-turut, atau
 membobol PIN tingkat Elite. Pencapaian nggak ikut terhapus saat statistik dihapus.
 
+**Ada rahasia di dalam app ini.** Beberapa game tersembunyi dan satu tema warna
+cuma bisa dibuka lewat rantai teka-teki yang tersebar di semua mode. Satu-satunya
+petunjuk resmi: buka daftar pencapaian dan baca bagian yang isinya tanda tanya.
+Jawabannya nggak ditulis di kode (`flutter_app/lib/rahasia.dart` cuma menyimpan
+hash-nya, dan sebagian petunjuk dienkripsi pakai jawaban tahap sebelumnya), jadi
+membaca source code juga nggak langsung membocorkan semuanya.
+
 Lewat tombol **Pengaturan** (ikon roda gigi) kamu bisa mengganti bahasa tampilan
 (Indonesia atau English), memilih tema terang, gelap, atau ikut setting sistem, mematikan animasi latar kalau app terasa patah-patah, mematikan getar,
 atau menghapus semua statistik. Semua warna yang berubah antara tema terang dan gelap
@@ -150,6 +157,7 @@ flutter build windows --release  # hasil: build/windows/x64/runner/Release/
 - [x] App: pencapaian (badge)
 - [x] App: mode gelap
 - [x] App: tampilan bahasa Inggris
+- [x] App: game dan teka-teki tersembunyi
 
 ## Lisensi
 

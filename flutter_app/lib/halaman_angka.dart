@@ -8,6 +8,7 @@ import 'kaca.dart';
 import 'komputer.dart';
 import 'pencapaian.dart';
 import 'pengaturan.dart';
+import 'rahasia.dart' show cocokUlar, kodeArsip;
 import 'simpanan.dart';
 
 /// Satu ronde yang sudah selesai, untuk statistik, grafik, dan riwayat.
@@ -427,6 +428,24 @@ class _HalamanAngkaState extends State<HalamanAngka> {
     final game = _game;
     if (game == null || game.selesai) return;
 
+    // Rahasia: kode arsip lengkap diketik di sini (angkanya terlalu besar
+    // untuk level mana pun, jadi biasanya cuma ditolak).
+    final pencapaian = PencapaianScope.baca(context);
+    if (pencapaian != null &&
+        pencapaian.fragmenLengkap &&
+        !pencapaian.terbuka('arsip') &&
+        kodeArsip(_input.text)) {
+      setState(() {
+        _input.clear();
+        _pesan = context.tr(
+            'Arsip terbuka. Tema rahasia "Fosfor" sekarang ada di Pengaturan.',
+            'Archive unlocked. The secret "Phosphor" theme is now in Settings.');
+      });
+      bukaLencana(context, ['arsip']);
+      _fokus.requestFocus();
+      return;
+    }
+
     final parse = parseTebakan(_input.text, game.level);
     if (parse.error != null) {
       setState(() => _pesan = context.dua(parse.error!));
@@ -474,6 +493,11 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       return;
     }
 
+    // Rahasia: menang di percobaan terakhir memberi fragmen arsip.
+    final fragmen = game.menang && game.sisa == 0 && !_gameHarian
+        ? catatFragmen(context, 'angka')
+        : null;
+
     setState(() {
       _input.clear();
       _tebakan.insert(0, hasil);
@@ -515,7 +539,25 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           _jumlahKalah++;
         }
       }
+      if (fragmen != null) _pesan = '$_pesan $fragmen';
     });
+
+    // Rahasia: lima tebakan pertama tertentu di level Sedang membangunkan ular.
+    final pencapaianUlar = PencapaianScope.baca(context);
+    if (!_gameHarian &&
+        game.level == daftarLevel[1] &&
+        _tebakan.length == 5 &&
+        pencapaianUlar != null &&
+        !pencapaianUlar.terbuka('ular') &&
+        cocokUlar(_tebakan.reversed.map((h) => h.angka))) {
+      setState(() {
+        _pesan = context.tr(
+            'Sssst... sesuatu merayap keluar dari terminal. Cek menu root.',
+            'Hsssss... something crawled out of the terminal. Check the root menu.');
+      });
+      bukaLencana(context, ['ular']);
+    }
+
     if (game.selesai) {
       _simpan();
       final sulit = game.level == daftarLevel.last;

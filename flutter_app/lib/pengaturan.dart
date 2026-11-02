@@ -16,6 +16,7 @@ class Pengaturan extends ChangeNotifier {
       _animasiLatar = data['animasiLatar'] != false;
       _getar = data['getar'] != false;
       _inggris = data['bahasa'] == 'en';
+      _fosfor = data['fosfor'] == true;
       _tema = ThemeMode.values.where((m) => m.name == data['tema']).firstOrNull ??
           ThemeMode.system;
     }
@@ -28,12 +29,26 @@ class Pengaturan extends ChangeNotifier {
   /// Kunci statistik yang dihapus oleh "Hapus statistik". Progres
   /// tantangan harian sengaja nggak ikut dihapus, supaya tantangan hari ini
   /// nggak bisa diulang dengan cara menghapus statistik.
-  static const kunciStatistik = ['tebak_angka.v1', 'wordle.v1', 'hacker.v1'];
+  static const kunciStatistik = [
+    'tebak_angka.v1',
+    'wordle.v1',
+    'hacker.v1',
+    'rahasia.v1',
+  ];
 
   bool _animasiLatar = true;
   bool _getar = true;
   ThemeMode _tema = ThemeMode.system;
   bool _inggris = false;
+  bool _fosfor = false;
+
+  /// Tema rahasia fosfor (cuma bisa dipilih setelah arsip terbuka).
+  bool get fosfor => _fosfor;
+  set fosfor(bool nilai) {
+    if (nilai == _fosfor) return;
+    _fosfor = nilai;
+    _simpanDanKabari();
+  }
 
   /// Bahasa tampilan: Indonesia (bawaan) atau Inggris.
   bool get inggris => _inggris;
@@ -73,6 +88,7 @@ class Pengaturan extends ChangeNotifier {
       'getar': _getar,
       'tema': _tema.name,
       'bahasa': _inggris ? 'en' : 'id',
+      'fosfor': _fosfor,
     });
     notifyListeners();
   }
