@@ -1,21 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'halaman_angka.dart';
 import 'halaman_wordle.dart';
 import 'kaca.dart';
+import 'simpanan.dart';
 
-void main() => runApp(const TebakAngkaApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  Simpanan? simpanan;
+  try {
+    simpanan = SimpananPrefs(await SharedPreferences.getInstance());
+  } catch (_) {
+    // Penyimpanan nggak tersedia (misalnya browser memblokir localStorage):
+    // game tetap jalan, cuma statistiknya nggak tersimpan.
+    simpanan = null;
+  }
+  runApp(TebakAngkaApp(simpanan: simpanan));
+}
 
 class TebakAngkaApp extends StatefulWidget {
   const TebakAngkaApp({
     super.key,
     this.pemuatKamus = muatKamusDariAset,
     this.latarBergerak = true,
+    this.simpanan,
   });
 
   /// Bisa diganti di test supaya nggak perlu baca file aset.
   final PemuatKamus pemuatKamus;
+
+  /// Tempat menyimpan statistik. Null = nggak disimpan.
+  final Simpanan? simpanan;
 
   /// Dimatikan di test (animasi tanpa akhir bikin pumpAndSettle macet).
   final bool latarBergerak;
@@ -44,6 +61,7 @@ class _TebakAngkaAppState extends State<TebakAngkaApp> {
         home: Beranda(
           pemuatKamus: widget.pemuatKamus,
           latarBergerak: widget.latarBergerak,
+          simpanan: widget.simpanan,
         ),
       ),
     );
@@ -55,10 +73,12 @@ class Beranda extends StatefulWidget {
     super.key,
     required this.pemuatKamus,
     required this.latarBergerak,
+    this.simpanan,
   });
 
   final PemuatKamus pemuatKamus;
   final bool latarBergerak;
+  final Simpanan? simpanan;
 
   @override
   State<Beranda> createState() => _BerandaState();
@@ -105,13 +125,14 @@ class _BerandaState extends State<Beranda> {
                 child: IndexedStack(
                   index: _halaman,
                   children: [
-                    const HalamanAngka(),
+                    HalamanAngka(simpanan: widget.simpanan),
                     // Wordle baru dibangun saat pertama dibuka, biar daftar
                     // katanya nggak dimuat kalau nggak dimainkan.
                     if (_wordlePernahDibuka)
                       HalamanWordle(
                         pemuatKamus: widget.pemuatKamus,
                         aktif: _halaman == 1,
+                        simpanan: widget.simpanan,
                       )
                     else
                       const SizedBox.shrink(),

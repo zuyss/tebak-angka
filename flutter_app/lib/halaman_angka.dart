@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'game.dart';
 import 'kaca.dart';
+import 'simpanan.dart';
 
 /// Satu ronde yang sudah selesai, untuk statistik, grafik, dan riwayat.
 class Ronde {
@@ -19,7 +20,45 @@ class Ronde {
   final int rahasia;
   final int percobaan;
   final bool menang;
+
+  Map<String, Object?> keJson() => {
+        'mode': mode.name,
+        'level': level.nama,
+        'rahasia': rahasia,
+        'percobaan': percobaan,
+        'menang': menang,
+      };
+
+  /// Null kalau datanya rusak atau mode/levelnya sudah tidak ada.
+  static Ronde? dariJson(Object? data) {
+    if (data is! Map) return null;
+    final mode = Mode.values.where((m) => m.name == data['mode']).firstOrNull;
+    final level =
+        daftarLevel.where((l) => l.nama == data['level']).firstOrNull;
+    final rahasia = data['rahasia'];
+    final percobaan = data['percobaan'];
+    final menang = data['menang'];
+    if (mode == null ||
+        level == null ||
+        rahasia is! int ||
+        percobaan is! int ||
+        percobaan < 1 ||
+        menang is! bool) {
+      return null;
+    }
+    return Ronde(
+      mode: mode,
+      level: level,
+      rahasia: rahasia,
+      percobaan: percobaan,
+      menang: menang,
+    );
+  }
 }
+
+/// Kunci rekor: rekor dihitung per mode dan per level, karena menang di
+/// Mudah dalam 3 percobaan nggak sebanding dengan menang di Sulit.
+String kunciRekor(Mode mode, Level level) => '${mode.name}|${level.nama}';
 
 Color warnaSuhu(Suhu suhu) => switch (suhu) {
       Suhu.membeku => const Color(0xFF3B82F6),
@@ -45,7 +84,10 @@ IconData ikonArah(Arah arah) => switch (arah) {
     };
 
 class HalamanAngka extends StatefulWidget {
-  const HalamanAngka({super.key});
+  const HalamanAngka({super.key, this.simpanan});
+
+  /// Null = statistik nggak disimpan (hilang saat app ditutup).
+  final Simpanan? simpanan;
 
   @override
   State<HalamanAngka> createState() => _HalamanAngkaState();
@@ -62,6 +104,65 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   final List<HasilTebakan> _tebakan = []; // ronde sekarang, terbaru di depan
   final List<Ronde> _ronde = []; // ronde selesai, terbaru di depan
 
+  // Total sepanjang masa. Dihitung terpisah dari _ronde, karena riwayat
+  // yang disimpan dibatasi (lihat _maksSimpan).
+  int _jumlahMenang = 0;
+  int _jumlahKalah = 0;
+  final Map<String, int> _rekorPer = {};
+
+  static const _kunciSimpanan = 'tebak_angka.v1';
+  static const _maksSimpan = 50;
+
+  @override
+  void initState() {
+    super.initState();
+    _muat();
+  }
+
+  void _muat() {
+    final data = widget.simpanan?.baca(_kunciSimpanan);
+    if (data == null) return;
+
+    _mode = Mode.values.where((m) => m.name == data['mode']).firstOrNull ??
+        _mode;
+    _level =
+        daftarLevel.where((l) => l.nama == data['level']).firstOrNull ?? _level;
+    _jumlahMenang = angkaAman(data['menang']);
+    _jumlahKalah = angkaAman(data['kalah']);
+
+    final rekor = data['rekor'];
+    if (rekor is Map) {
+      for (final MapEntry(:key, :value) in rekor.entries) {
+        if (key is String && value is int && value >= 1) _rekorPer[key] = value;
+      }
+    }
+    final ronde = data['ronde'];
+    if (ronde is List) {
+      _ronde.addAll(ronde.map(Ronde.dariJson).whereType<Ronde>());
+    }
+  }
+
+  void _simpan() {
+    widget.simpanan?.tulis(_kunciSimpanan, {
+      'mode': _mode.name,
+      'level': _level.nama,
+      'menang': _jumlahMenang,
+      'kalah': _jumlahKalah,
+      'rekor': _rekorPer,
+      'ronde': [for (final r in _ronde.take(_maksSimpan)) r.keJson()],
+    });
+  }
+
+  void _pilihMode(Mode mode) {
+    setState(() => _mode = mode);
+    _simpan();
+  }
+
+  void _pilihLevel(Level level) {
+    setState(() => _level = level);
+    _simpan();
+  }
+
   @override
   void dispose() {
     _input.dispose();
@@ -71,17 +172,20 @@ class _HalamanAngkaState extends State<HalamanAngka> {
 
   // ---------- statistik ----------
 
-  int get _jumlahMenang => _ronde.where((r) => r.menang).length;
-  int get _jumlahKalah => _ronde.length - _jumlahMenang;
+  int get _jumlahRonde => _jumlahMenang + _jumlahKalah;
 
-  String get _winRate => _ronde.isEmpty
+  String get _winRate => _jumlahRonde == 0
       ? '-'
-      : '${(_jumlahMenang * 100 / _ronde.length).round()}%';
+      : '${(_jumlahMenang * 100 / _jumlahRonde).round()}%';
+
+  /// Mode dan level yang rekornya ditampilkan: ronde yang sedang jalan,
+  /// atau pilihan di layar pilih level.
+  Mode get _modeTampil => _game?.mode ?? _mode;
+  Level get _levelTampil => _game?.level ?? _level;
 
   String get _rekor {
-    final menang = _ronde.where((r) => r.menang).map((r) => r.percobaan);
-    if (menang.isEmpty) return '-';
-    return '${menang.reduce((a, b) => a < b ? a : b)} percobaan';
+    final nilai = _rekorPer[kunciRekor(_modeTampil, _levelTampil)];
+    return nilai == null ? '-' : '$nilai percobaan';
   }
 
   /// Riwayat dan grafik cuma menampilkan ronde terakhir sebanyak ini.
@@ -90,8 +194,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   /// Contoh: "10 dari 15 ronde terakhir. Hitam menang, abu-abu kalah"
   String _keteranganJumlah(String tambahan) {
     final bagian = <String>[
-      if (_ronde.length > _maksTampil)
-        '$_maksTampil dari ${_ronde.length} ronde terakhir.',
+      if (_jumlahRonde > _maksTampil)
+        '$_maksTampil dari $_jumlahRonde ronde terakhir.',
       if (tambahan.isNotEmpty) tambahan,
     ];
     return bagian.join(' ');
@@ -154,8 +258,21 @@ class _HalamanAngkaState extends State<HalamanAngka> {
             menang: game.menang,
           ),
         );
+        if (_ronde.length > _maksSimpan) _ronde.removeLast();
+        if (game.menang) {
+          _jumlahMenang++;
+          final kunci = kunciRekor(game.mode, game.level);
+          final lama = _rekorPer[kunci];
+          if (lama == null || game.percobaan < lama) {
+            _rekorPer[kunci] = game.percobaan;
+            _pesan = '$_pesan Rekor baru!';
+          }
+        } else {
+          _jumlahKalah++;
+        }
       }
     });
+    if (game.selesai) _simpan();
 
     if (!game.selesai) _fokus.requestFocus();
   }
@@ -195,6 +312,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                   ],
                   const SizedBox(height: 20),
                   _kartuRiwayat(),
+                  const SizedBox(height: 20),
+                  const KartuSegeraHadir(),
                 ],
               ),
             ),
@@ -268,7 +387,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
               PilihanKaca(
                 label: m.nama,
                 dipilih: m == _mode,
-                onTap: () => setState(() => _mode = m),
+                onTap: () => _pilihMode(m),
               ),
           ],
         ),
@@ -285,7 +404,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
               PilihanKaca(
                 label: level.nama,
                 dipilih: level == _level,
-                onTap: () => setState(() => _level = level),
+                onTap: () => _pilihLevel(level),
               ),
           ],
         ),
@@ -558,7 +677,13 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           children: [
             Expanded(child: _kartuAngka('Win rate', _winRate, Icons.percent)),
             const SizedBox(width: 16),
-            Expanded(child: _kartuAngka('Rekor tercepat', _rekor, Icons.bolt)),
+            Expanded(
+              child: _kartuAngka(
+                'Rekor ${_modeTampil.nama} ${_levelTampil.nama}',
+                _rekor,
+                Icons.bolt,
+              ),
+            ),
           ],
         ),
       ],
@@ -673,7 +798,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _judul('Riwayat ronde'),
-          if (_ronde.length > _maksTampil) ...[
+          if (_jumlahRonde > _maksTampil) ...[
             const SizedBox(height: 4),
             _label(_keteranganJumlah('')),
           ],
@@ -728,6 +853,105 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                 ),
               ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Fitur yang sedang direncanakan, supaya pemain tahu apa yang akan datang.
+class KartuSegeraHadir extends StatelessWidget {
+  const KartuSegeraHadir({super.key});
+
+  static const _daftar = [
+    (
+      Icons.calendar_today_outlined,
+      'Tantangan harian',
+      'Satu angka dan satu kata yang sama untuk semua orang tiap hari, '
+          'plus tombol bagikan hasil.',
+    ),
+    (
+      Icons.smart_toy_outlined,
+      'Komputer yang menebak',
+      'Kamu pikirkan angkanya, komputer menebak pakai binary search.',
+    ),
+    (
+      Icons.terminal,
+      'Mode Hacker',
+      'Bobol PIN 4 digit: tiap tebakan memberi tahu berapa digit yang '
+          'tepat posisinya dan berapa yang salah tempat.',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return KartuKaca(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Segera hadir',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: warnaTeks,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: warnaHitam,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'SEGERA',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          for (final (ikon, judul, keterangan) in _daftar)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(ikon, size: 20, color: warnaTeksRedup),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          judul,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: warnaTeks,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          keterangan,
+                          style: const TextStyle(
+                            color: warnaTeksRedup,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

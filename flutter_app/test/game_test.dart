@@ -3,8 +3,11 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tebak_angka/game.dart';
+import 'package:tebak_angka/halaman_angka.dart';
 import 'package:tebak_angka/main.dart';
+import 'package:tebak_angka/simpanan.dart';
 import 'package:tebak_angka/wordle.dart';
 
 const mudah = Level('Mudah', 1, 50, 10);
@@ -248,13 +251,78 @@ void main() {
     }
   });
 
-  Future<void> aturLayar(WidgetTester tester, Size ukuran) async {
+  group('penyimpanan', () {
+    test('JSON rusak atau bukan objek dianggap kosong', () {
+      expect(uraiJson(null), isNull);
+      expect(uraiJson('bukan json'), isNull);
+      expect(uraiJson('[1, 2]'), isNull);
+      expect(uraiJson('{"a": 1}'), {'a': 1});
+    });
+
+    test('angkaAman menolak nilai aneh', () {
+      expect(angkaAman(5), 5);
+      expect(angkaAman(-3), 0);
+      expect(angkaAman('5'), 0);
+      expect(angkaAman(null, 7), 7);
+    });
+
+    test('Ronde bolak-balik JSON, data rusak dibuang', () {
+      final r = Ronde(
+        mode: Mode.detektif,
+        level: daftarLevel[1],
+        rahasia: 42,
+        percobaan: 3,
+        menang: true,
+      );
+      final balik = Ronde.dariJson(r.keJson())!;
+      expect(balik.mode, Mode.detektif);
+      expect(balik.level, daftarLevel[1]);
+      expect(balik.rahasia, 42);
+      expect(balik.percobaan, 3);
+      expect(balik.menang, isTrue);
+
+      expect(Ronde.dariJson('teks'), isNull);
+      expect(Ronde.dariJson({...r.keJson(), 'mode': 'hilang'}), isNull);
+      expect(Ronde.dariJson({...r.keJson(), 'percobaan': 0}), isNull);
+    });
+
+    test('SimpananPrefs membaca dan menulis lewat SharedPreferences',
+        () async {
+      SharedPreferences.setMockInitialValues({'rusak': '{oops'});
+      final s = SimpananPrefs(await SharedPreferences.getInstance());
+      expect(s.baca('rusak'), isNull);
+      expect(s.baca('belum-ada'), isNull);
+      s.tulis('k', {'a': 1});
+      expect(s.baca('k'), {'a': 1});
+    });
+  });
+
+  Future<void> aturLayar(WidgetTester tester, Size ukuran,
+      {Simpanan? simpanan}) async {
     tester.view.physicalSize = ukuran;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
-      const TebakAngkaApp(pemuatKamus: kamusPalsu, latarBergerak: false),
+      TebakAngkaApp(
+        pemuatKamus: kamusPalsu,
+        latarBergerak: false,
+        simpanan: simpanan,
+      ),
     );
+  }
+
+  /// Buang app lalu buka lagi dengan penyimpanan yang sama, seperti
+  /// menutup dan membuka ulang app.
+  Future<void> bukaUlang(WidgetTester tester, Simpanan simpanan) async {
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(
+      TebakAngkaApp(
+        pemuatKamus: kamusPalsu,
+        latarBergerak: false,
+        simpanan: simpanan,
+      ),
+    );
+    await tester.pumpAndSettle();
   }
 
   Future<void> ketuk(WidgetTester tester, Finder target) async {
@@ -324,6 +392,40 @@ void main() {
       expect(find.text('Petunjuk (1 terbuka)'), findsOneWidget);
     });
 
+    testWidgets('statistik tebak angka tersimpan di layar $nama',
+        (tester) async {
+      final simpanan = SimpananMemori();
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      await ketuk(tester, find.text('Detektif'));
+      await ketuk(tester, find.text('Mulai'));
+
+      // Tebak 1, 2, 3, ... sampai ronde selesai (menang atau jatah habis).
+      for (var angka = 1; angka <= 10; angka++) {
+        if (find.byType(TextField).evaluate().isEmpty) break;
+        await tester.enterText(find.byType(TextField), '$angka');
+        await ketuk(tester, find.text('Tebak'));
+      }
+      expect(find.text('Selesaikan satu ronde, hasilnya muncul di sini.'),
+          findsNothing);
+
+      await bukaUlang(tester, simpanan);
+      // Riwayat masih ada, dan pilihan mode terakhir (Detektif) diingat.
+      expect(find.text('Selesaikan satu ronde, hasilnya muncul di sini.'),
+          findsNothing);
+      expect(find.text(Mode.detektif.deskripsi), findsOneWidget);
+    });
+
+    testWidgets('data tersimpan yang rusak nggak bikin crash di layar $nama',
+        (tester) async {
+      final simpanan = SimpananMemori()
+        ..isiMentah('tebak_angka.v1', '{rusak')
+        ..isiMentah('wordle.v1', '{"main": "banyak", "menang": -1}');
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      expect(find.text('Pilih level'), findsOneWidget);
+      await ketuk(tester, find.text('Wordle'));
+      expect(find.text('Main 0   Menang 0   Beruntun 0'), findsOneWidget);
+    });
+
     testWidgets('wordle di layar $nama', (tester) async {
       await aturLayar(tester, ukuran);
       await ketuk(tester, find.text('Wordle'));
@@ -356,6 +458,23 @@ void main() {
       expect(find.textContaining('Mantap!'), findsNothing);
       // Papan kosong lagi: sel yang sudah dinilai hilang.
       expect(find.byKey(const ValueKey('sel-0-0')), findsNothing);
+      expect(find.text('Main 1   Menang 1   Beruntun 1'), findsOneWidget);
+    });
+
+    testWidgets('statistik wordle tersimpan di layar $nama', (tester) async {
+      final simpanan = SimpananMemori();
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      await ketuk(tester, find.text('Wordle'));
+      await ketuk(tester, find.text('6 huruf'));
+      await ketuk(tester, find.text('5 huruf'));
+      for (final h in 'rumah'.split('')) {
+        await ketuk(tester, find.byKey(ValueKey('tombol-$h')));
+      }
+      await ketuk(tester, find.byKey(const ValueKey('tombol-enter')));
+      expect(find.text('Main 1   Menang 1   Beruntun 1'), findsOneWidget);
+
+      await bukaUlang(tester, simpanan);
+      await ketuk(tester, find.text('Wordle'));
       expect(find.text('Main 1   Menang 1   Beruntun 1'), findsOneWidget);
     });
   }

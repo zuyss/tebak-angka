@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'kaca.dart';
+import 'simpanan.dart';
 import 'wordle.dart';
 
 typedef PemuatKamus = Future<KamusWordle> Function(Bahasa bahasa, int panjang);
@@ -31,9 +32,13 @@ class HalamanWordle extends StatefulWidget {
     super.key,
     required this.pemuatKamus,
     required this.aktif,
+    this.simpanan,
   });
 
   final PemuatKamus pemuatKamus;
+
+  /// Null = statistik nggak disimpan (hilang saat app ditutup).
+  final Simpanan? simpanan;
 
   /// True kalau halaman ini sedang tampil (buat ambil fokus keyboard).
   final bool aktif;
@@ -59,13 +64,41 @@ class _HalamanWordleState extends State<HalamanWordle> {
   int _menang = 0;
   int _beruntun = 0;
 
+  static const _kunciSimpanan = 'wordle.v1';
+
   @override
   void initState() {
     super.initState();
+    _muatStatistik();
     // setState belum boleh dipanggil di initState, jadi status awal
     // diisi langsung lalu daftar kata dimuat.
     _memuat = true;
     _muatLaluMulai();
+  }
+
+  void _muatStatistik() {
+    final data = widget.simpanan?.baca(_kunciSimpanan);
+    if (data == null) return;
+    _bahasa = Bahasa.values.where((b) => b.kode == data['bahasa']).firstOrNull ??
+        _bahasa;
+    final panjang = data['panjang'];
+    if (panjangTersedia.contains(panjang)) _panjang = panjang as int;
+    _main = angkaAman(data['main']);
+    _menang = angkaAman(data['menang']);
+    _beruntun = angkaAman(data['beruntun']);
+    // Data rusak/diedit manual: jaga supaya angkanya tetap masuk akal.
+    if (_menang > _main) _menang = _main;
+    if (_beruntun > _menang) _beruntun = _menang;
+  }
+
+  void _simpanStatistik() {
+    widget.simpanan?.tulis(_kunciSimpanan, {
+      'bahasa': _bahasa.kode,
+      'panjang': _panjang,
+      'main': _main,
+      'menang': _menang,
+      'beruntun': _beruntun,
+    });
   }
 
   @override
@@ -127,12 +160,14 @@ class _HalamanWordleState extends State<HalamanWordle> {
   void _gantiBahasa(Bahasa bahasa) {
     if (bahasa == _bahasa) return;
     _bahasa = bahasa;
+    _simpanStatistik();
     _kataBaru();
   }
 
   void _gantiPanjang(int panjang) {
     if (panjang == _panjang) return;
     _panjang = panjang;
+    _simpanStatistik();
     _kataBaru();
   }
 
@@ -181,6 +216,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
         }
       }
     });
+    if (game.selesai) _simpanStatistik();
   }
 
   KeyEventResult _tombolFisik(FocusNode node, KeyEvent event) {
