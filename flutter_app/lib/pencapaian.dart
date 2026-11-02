@@ -3,52 +3,68 @@
 
 import 'package:flutter/material.dart';
 
+import 'pengaturan.dart';
 import 'simpanan.dart';
 
 class Lencana {
-  const Lencana(this.id, this.judul, this.syarat, this.ikon);
+  const Lencana(this.id, this.ikon, this.judul, this.syarat, this.judulEn,
+      this.syaratEn);
 
   final String id;
+  final IconData ikon;
   final String judul;
   final String syarat;
-  final IconData ikon;
+  final String judulEn;
+  final String syaratEn;
 }
 
 const List<Lencana> daftarLencana = [
-  Lencana('menang_pertama', 'Langkah pertama',
-      'Menang tebak angka untuk pertama kali.', Icons.flag_outlined),
-  Lencana('sekali_tebak', 'Cenayang', 'Menang tebak angka dalam 1 percobaan.',
-      Icons.auto_awesome_outlined),
-  Lencana('panas_sulit', 'Tahan panas', 'Menang Panas-Dingin di level Sulit.',
-      Icons.local_fire_department_outlined),
-  Lencana('detektif_sulit', 'Sherlock', 'Menang mode Detektif di level Sulit.',
-      Icons.search),
-  Lencana('komputer_curang', 'Ketahuan bohong',
-      'Bikin komputer sadar jawabanmu bertentangan.',
-      Icons.sentiment_dissatisfied_outlined),
-  Lencana('harian_pertama', 'Rutinitas baru',
-      'Selesaikan satu tantangan harian.', Icons.calendar_today_outlined),
-  Lencana('harian_3', 'Tiga hari', 'Selesaikan tantangan harian 3 hari berturut-turut.',
-      Icons.event_repeat_outlined),
-  Lencana('harian_7', 'Seminggu penuh',
-      'Selesaikan tantangan harian 7 hari berturut-turut.',
-      Icons.workspace_premium_outlined),
-  Lencana('wordle_pertama', 'Penyusun kata', 'Menang Wordle untuk pertama kali.',
-      Icons.abc),
-  Lencana('wordle_cepat', 'Kilat', 'Menang Wordle dalam 2 tebakan atau kurang.',
-      Icons.bolt),
-  Lencana('wordle_sulit', 'Tanpa ampun', 'Menang Wordle dengan mode sulit.',
-      Icons.shield_outlined),
-  Lencana('wordle_7', 'Kata panjang', 'Menang Wordle 7 huruf.',
-      Icons.straighten_outlined),
-  Lencana('wordle_beruntun', 'Tak terhentikan', 'Menang Wordle 5 kali beruntun.',
-      Icons.trending_up),
-  Lencana('hacker_pertama', 'Akses diterima', 'Bobol PIN untuk pertama kali.',
-      Icons.lock_open_outlined),
-  Lencana('hacker_elite', 'Elite', 'Bobol PIN tingkat Elite.',
-      Icons.terminal),
-  Lencana('duel_pertama', 'Lawan tanding', 'Selesaikan satu duel 2 pemain.',
-      Icons.people_outline),
+  Lencana('menang_pertama', Icons.flag_outlined, 'Langkah pertama',
+      'Menang tebak angka untuk pertama kali.', 'First step',
+      'Win a number guess for the first time.'),
+  Lencana('sekali_tebak', Icons.auto_awesome_outlined, 'Cenayang',
+      'Menang tebak angka dalam 1 percobaan.', 'Psychic',
+      'Win a number guess in 1 try.'),
+  Lencana('panas_sulit', Icons.local_fire_department_outlined, 'Tahan panas',
+      'Menang Panas-Dingin di level Sulit.', 'Heatproof',
+      'Win Hot-Cold on Hard.'),
+  Lencana('detektif_sulit', Icons.search, 'Sherlock',
+      'Menang mode Detektif di level Sulit.', 'Sherlock',
+      'Win Detective mode on Hard.'),
+  Lencana('komputer_curang', Icons.sentiment_dissatisfied_outlined,
+      'Ketahuan bohong', 'Bikin komputer sadar jawabanmu bertentangan.',
+      'Caught lying', 'Make the computer notice your answers contradict.'),
+  Lencana('harian_pertama', Icons.calendar_today_outlined, 'Rutinitas baru',
+      'Selesaikan satu tantangan harian.', 'New routine',
+      'Finish a daily challenge.'),
+  Lencana('harian_3', Icons.event_repeat_outlined, 'Tiga hari',
+      'Selesaikan tantangan harian 3 hari berturut-turut.', 'Three days',
+      'Finish the daily challenge 3 days in a row.'),
+  Lencana('harian_7', Icons.workspace_premium_outlined, 'Seminggu penuh',
+      'Selesaikan tantangan harian 7 hari berturut-turut.', 'Full week',
+      'Finish the daily challenge 7 days in a row.'),
+  Lencana('wordle_pertama', Icons.abc, 'Penyusun kata',
+      'Menang Wordle untuk pertama kali.', 'Wordsmith',
+      'Win Wordle for the first time.'),
+  Lencana('wordle_cepat', Icons.bolt, 'Kilat',
+      'Menang Wordle dalam 2 tebakan atau kurang.', 'Lightning',
+      'Win Wordle in 2 guesses or fewer.'),
+  Lencana('wordle_sulit', Icons.shield_outlined, 'Tanpa ampun',
+      'Menang Wordle dengan mode sulit.', 'No mercy',
+      'Win Wordle in hard mode.'),
+  Lencana('wordle_7', Icons.straighten_outlined, 'Kata panjang',
+      'Menang Wordle 7 huruf.', 'Long word', 'Win a 7-letter Wordle.'),
+  Lencana('wordle_beruntun', Icons.trending_up, 'Tak terhentikan',
+      'Menang Wordle 5 kali beruntun.', 'Unstoppable',
+      'Win Wordle 5 times in a row.'),
+  Lencana('hacker_pertama', Icons.lock_open_outlined, 'Akses diterima',
+      'Bobol PIN untuk pertama kali.', 'Access granted',
+      'Crack a PIN for the first time.'),
+  Lencana('hacker_elite', Icons.terminal, 'Elite', 'Bobol PIN tingkat Elite.',
+      'Elite', 'Crack an Elite PIN.'),
+  Lencana('duel_pertama', Icons.people_outline, 'Lawan tanding',
+      'Selesaikan satu duel 2 pemain.', 'Sparring partner',
+      'Finish a 2-player duel.'),
 ];
 
 class Pencapaian extends ChangeNotifier {
@@ -162,7 +178,10 @@ void umumkanLencana(BuildContext context, Iterable<Lencana?> lencana) {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Pencapaian terbuka: ${baru.map((l) => l.judul).join(', ')}',
+              context.tr(
+                'Pencapaian terbuka: ${baru.map((l) => l.judul).join(', ')}',
+                'Achievement unlocked: ${baru.map((l) => l.judulEn).join(', ')}',
+              ),
             ),
           ),
         ],

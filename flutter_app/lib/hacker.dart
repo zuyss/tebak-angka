@@ -4,18 +4,22 @@
 
 import 'dart:math';
 
-class TingkatHacker {
-  const TingkatHacker(this.nama, this.panjang, this.nyawa);
+import 'dua.dart';
 
+class TingkatHacker {
+  const TingkatHacker(this.nama, this.namaEn, this.panjang, this.nyawa);
+
+  /// Nama Indonesia. Juga dipakai sebagai kunci penyimpanan.
   final String nama;
+  final String namaEn;
   final int panjang;
   final int nyawa;
 }
 
 const List<TingkatHacker> daftarTingkatHacker = [
-  TingkatHacker('Pemula', 3, 8),
-  TingkatHacker('Standar', 4, 10),
-  TingkatHacker('Elite', 5, 12),
+  TingkatHacker('Pemula', 'Beginner', 3, 8),
+  TingkatHacker('Standar', 'Standard', 4, 10),
+  TingkatHacker('Elite', 'Elite', 5, 12),
 ];
 
 class HasilPin {
@@ -88,13 +92,14 @@ class HackerGame {
   int get sisa => tingkat.nyawa - riwayat.length;
 
   /// Kembalikan pesan error kalau tebakan ditolak, atau null kalau diterima.
-  String? tebak(String teks) {
+  Dua? tebak(String teks) {
     if (selesai) {
       throw StateError('Permainan sudah selesai, mulai lagi.');
     }
     final t = teks.trim();
     if (t.length != tingkat.panjang || !_digit.hasMatch(t)) {
-      return 'PIN harus ${tingkat.panjang} digit angka.';
+      return Dua('PIN harus ${tingkat.panjang} digit angka.',
+          'The PIN must be ${tingkat.panjang} digits.');
     }
     final hasil = nilaiPin(t, pin);
     riwayat.add((t, hasil));

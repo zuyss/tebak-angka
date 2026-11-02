@@ -70,6 +70,8 @@ otomatis lewat GitHub Actions pada Python 3.10 sampai 3.13.
 
 ## Versi App (Web, Android, dan Windows)
 
+> The app is available in English too: open **Pengaturan** (gear icon) and choose **English**.
+
 Folder `flutter_app/` berisi versi app dengan tampilan light glassmorphism dan dua game:
 
 - **Tebak Angka**, dengan dua mode:
@@ -100,8 +102,8 @@ Ada **16 pencapaian** (ikon piala) yang terbuka saat kamu melakukan sesuatu, mis
 menang dalam 1 tebakan, menyelesaikan tantangan harian 7 hari berturut-turut, atau
 membobol PIN tingkat Elite. Pencapaian nggak ikut terhapus saat statistik dihapus.
 
-Lewat tombol **Pengaturan** (ikon roda gigi) kamu bisa memilih tema terang, gelap, atau
-ikut setting sistem, mematikan animasi latar kalau app terasa patah-patah, mematikan getar,
+Lewat tombol **Pengaturan** (ikon roda gigi) kamu bisa mengganti bahasa tampilan
+(Indonesia atau English), memilih tema terang, gelap, atau ikut setting sistem, mematikan animasi latar kalau app terasa patah-patah, mematikan getar,
 atau menghapus semua statistik. Semua warna yang berubah antara tema terang dan gelap
 dikumpulkan di satu palet (`Palet` di `flutter_app/lib/kaca.dart`).
 
@@ -147,7 +149,7 @@ flutter build windows --release  # hasil: build/windows/x64/runner/Release/
 - [x] App: Wordle mode sulit
 - [x] App: pencapaian (badge)
 - [x] App: mode gelap
-- [ ] App: tampilan bahasa Inggris
+- [x] App: tampilan bahasa Inggris
 
 ## Lisensi
 

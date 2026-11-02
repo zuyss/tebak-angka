@@ -71,9 +71,9 @@ class Duel {
   }
 
   /// Teks skor satu pemain, misalnya "4 percobaan" atau "gagal".
-  String teksSkor(int? skor) => skor == null
+  String teksSkor(int? skor, {bool inggris = false}) => skor == null
       ? '-'
       : skor > nyawa
-          ? 'gagal'
-          : '$skor percobaan';
+          ? (inggris ? 'failed' : 'gagal')
+          : (inggris ? '$skor tries' : '$skor percobaan');
 }

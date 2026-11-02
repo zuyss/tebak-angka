@@ -77,7 +77,7 @@ class _TebakAngkaAppState extends State<TebakAngkaApp> {
                   setState(() => _grafikPerforma = !_grafikPerforma),
             },
             child: MaterialApp(
-              title: 'Tebak Angka',
+              title: context.tr('Tebak Angka', 'Number Guess'),
               debugShowCheckedModeBanner: false,
               showPerformanceOverlay: _grafikPerforma,
               themeMode: _pengaturan.tema,
@@ -146,16 +146,16 @@ class _BerandaState extends State<Beranda> {
     pengaturan.hapusStatistik();
     setState(() => _generasi++);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Statistik dihapus.')),
+      SnackBar(content: Text(context.tr('Statistik dihapus.', 'Stats cleared.'))),
     );
   }
 
   String _sapaan() {
     final jamSekarang = widget.jam().hour;
-    if (jamSekarang < 11) return 'Selamat pagi';
-    if (jamSekarang < 15) return 'Selamat siang';
-    if (jamSekarang < 18) return 'Selamat sore';
-    return 'Selamat malam';
+    if (jamSekarang < 11) return context.tr('Selamat pagi', 'Good morning');
+    if (jamSekarang < 15) return context.tr('Selamat siang', 'Good afternoon');
+    if (jamSekarang < 18) return context.tr('Selamat sore', 'Good afternoon');
+    return context.tr('Selamat malam', 'Good evening');
   }
 
   void _pindah(int halaman) {
@@ -234,13 +234,13 @@ class _BerandaState extends State<Beranda> {
           ),
         ),
         Text(
-          'Mau main apa hari ini?',
+          context.tr('Mau main apa hari ini?', 'What do you want to play today?'),
           style: TextStyle(color: context.palet.teksRedup),
         ),
       ],
     );
     final menu = _MenuSwitch(
-      pilihan: const ['Tebak Angka', 'Wordle', 'Hacker'],
+      pilihan: [context.tr('Tebak Angka', 'Number Guess'), 'Wordle', 'Hacker'],
       indeks: _halaman,
       onGanti: _pindah,
     );
@@ -249,7 +249,7 @@ class _BerandaState extends State<Beranda> {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          tooltip: 'Pencapaian',
+          tooltip: context.tr('Pencapaian', 'Achievements'),
           icon: Icon(Icons.emoji_events_outlined, color: context.palet.teks),
           onPressed: () => showDialog<void>(
             context: context,
@@ -257,7 +257,7 @@ class _BerandaState extends State<Beranda> {
           ),
         ),
         IconButton(
-          tooltip: 'Pengaturan',
+          tooltip: context.tr('Pengaturan', 'Settings'),
           icon: Icon(Icons.settings_outlined, color: context.palet.teks),
           onPressed: _bukaPengaturan,
         ),
@@ -371,21 +371,21 @@ class _DialogPengaturan extends StatelessWidget {
     final yakin = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Hapus semua statistik?'),
-        content: const Text(
-          'Menang/kalah, rekor, riwayat ronde, statistik Wordle, dan skor '
+        title: Text(context.tr('Hapus semua statistik?', 'Clear all stats?')),
+        content: Text(
+          context.tr('Menang/kalah, rekor, riwayat ronde, statistik Wordle, dan skor '
           'Hacker akan kembali ke nol. Ini nggak bisa dibatalkan. Progres '
-          'tantangan harian hari ini tetap tersimpan.',
+          'tantangan harian hari ini tetap tersimpan.', 'Wins, losses, records, round history, Wordle stats, and Hacker scores will reset to zero. This cannot be undone. Progress on the daily challenge for today is kept.'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+            child: Text(context.tr('Batal', 'Cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
-            child: const Text('Hapus'),
+            child: Text(context.tr('Hapus', 'Clear')),
           ),
         ],
       ),
@@ -397,7 +397,7 @@ class _DialogPengaturan extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: context.palet.dialog,
-      title: const Text('Pengaturan'),
+      title: Text(context.tr('Pengaturan', 'Settings')),
       contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
       content: ListenableBuilder(
         listenable: pengaturan,
@@ -407,20 +407,20 @@ class _DialogPengaturan extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: SegmentedButton<ThemeMode>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: ThemeMode.system,
-                    label: Text('Sistem'),
+                    label: Text(context.tr('Sistem', 'System')),
                     icon: Icon(Icons.brightness_auto_outlined),
                   ),
                   ButtonSegment(
                     value: ThemeMode.light,
-                    label: Text('Terang'),
+                    label: Text(context.tr('Terang', 'Light')),
                     icon: Icon(Icons.light_mode_outlined),
                   ),
                   ButtonSegment(
                     value: ThemeMode.dark,
-                    label: Text('Gelap'),
+                    label: Text(context.tr('Gelap', 'Dark')),
                     icon: Icon(Icons.dark_mode_outlined),
                   ),
                 ],
@@ -429,22 +429,34 @@ class _DialogPengaturan extends StatelessWidget {
                     pengaturan.tema = pilihan.first,
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Indonesia')),
+                  ButtonSegment(value: true, label: Text('English')),
+                ],
+                selected: {pengaturan.inggris},
+                onSelectionChanged: (pilihan) =>
+                    pengaturan.inggris = pilihan.first,
+              ),
+            ),
             SwitchListTile(
-              title: const Text('Animasi latar'),
-              subtitle: const Text('Matikan kalau app terasa patah-patah.'),
+              title: Text(context.tr('Animasi latar', 'Background animation')),
+              subtitle: Text(context.tr('Matikan kalau app terasa patah-patah.', 'Turn off if the app feels choppy.')),
               value: pengaturan.animasiLatar,
               onChanged: (v) => pengaturan.animasiLatar = v,
             ),
             SwitchListTile(
-              title: const Text('Getar'),
-              subtitle: const Text('Getar halus saat menebak (di HP).'),
+              title: Text(context.tr('Getar', 'Vibration')),
+              subtitle: Text(context.tr('Getar halus saat menebak (di HP).', 'Subtle vibration when guessing (phones).')),
               value: pengaturan.getar,
               onChanged: (v) => pengaturan.getar = v,
             ),
             ListTile(
               leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
               title: Text(
-                'Hapus semua statistik',
+                context.tr('Hapus semua statistik', 'Clear all stats'),
                 style: TextStyle(color: Colors.red.shade700),
               ),
               onTap: () => _konfirmasiHapus(context),
@@ -455,7 +467,7 @@ class _DialogPengaturan extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Tutup'),
+          child: Text(context.tr('Tutup', 'Close')),
         ),
       ],
     );
@@ -472,7 +484,7 @@ class _DialogPencapaian extends StatelessWidget {
     final jumlah = p?.jumlahTerbuka ?? 0;
     return AlertDialog(
       backgroundColor: context.palet.dialog,
-      title: Text('Pencapaian ($jumlah/${daftarLencana.length})'),
+      title: Text(context.tr('Pencapaian ($jumlah/${daftarLencana.length})', 'Achievements ($jumlah/${daftarLencana.length})')),
       contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
       content: SizedBox(
         width: 420,
@@ -486,7 +498,7 @@ class _DialogPencapaian extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Text(
-                    'Tantangan harian beruntun: ${p!.harianBeruntun} hari',
+                    context.tr('Tantangan harian beruntun: ${p!.harianBeruntun} hari', 'Daily challenge streak: ${p!.harianBeruntun} days'),
                     style: TextStyle(color: context.palet.teksRedup),
                   ),
                 ),
@@ -505,7 +517,7 @@ class _DialogPencapaian extends StatelessWidget {
                     ),
                   ),
                   title: Text(
-                    l.judul,
+                    context.tr(l.judul, l.judulEn),
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: (p?.terbuka(l.id) ?? false)
@@ -513,7 +525,7 @@ class _DialogPencapaian extends StatelessWidget {
                           : context.palet.teksRedup,
                     ),
                   ),
-                  subtitle: Text(l.syarat),
+                  subtitle: Text(context.tr(l.syarat, l.syaratEn)),
                 ),
             ],
           ),
@@ -522,7 +534,7 @@ class _DialogPencapaian extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Tutup'),
+          child: Text(context.tr('Tutup', 'Close')),
         ),
       ],
     );

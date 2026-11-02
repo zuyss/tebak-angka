@@ -18,9 +18,9 @@ import 'package:tebak_angka/pengaturan.dart';
 import 'package:tebak_angka/simpanan.dart';
 import 'package:tebak_angka/wordle.dart';
 
-const mudah = Level('Mudah', 1, 50, 10);
-const kecil = Level('Kecil', 1, 10, 3);
-const besar = Level('Besar', 1, 101, 10); // rentang 100, enak buat hitung persen
+const mudah = Level('Mudah', 'Easy', 1, 50, 10);
+const kecil = Level('Kecil', 'Small', 1, 10, 3);
+const besar = Level('Besar', 'Big', 1, 101, 10); // rentang 100, enak buat hitung persen
 
 /// Kamus palsu untuk widget test, supaya nggak perlu baca file aset.
 Future<KamusWordle> kamusPalsu(Bahasa bahasa, int panjang) async =>
@@ -40,7 +40,7 @@ void main() {
     });
 
     test('angka sangat panjang ditolak tanpa crash', () {
-      expect(parseTebakan('9' * 5000, mudah).error, 'Angkanya terlalu panjang.');
+      expect(parseTebakan('9' * 5000, mudah).error?.id, 'Angkanya terlalu panjang.');
     });
 
     test('di luar rentang ditolak', () {
@@ -154,7 +154,14 @@ void main() {
       for (final level in daftarLevel) {
         for (var i = 0; i < 300; i++) {
           final r = level.bawah + random.nextInt(level.atas - level.bawah + 1);
-          final semua = buatPetunjuk(r, level, random);
+          final dua = buatPetunjuk(r, level, random);
+          final semua = [for (final p in dua) p.id];
+          // Tiap petunjuk punya versi Inggris yang memuat angka yang sama.
+          for (final p in dua) {
+            expect(RegExp(r'\d+').allMatches(p.en).map((m) => m.group(0)),
+                RegExp(r'\d+').allMatches(p.id).map((m) => m.group(0)),
+                reason: p.id);
+          }
           expect(semua, contains(r.isEven ? 'Angkanya genap.' : 'Angkanya ganjil.'));
           expect(semua, contains('Digit terakhirnya ${r % 10}.'));
 
@@ -205,8 +212,8 @@ void main() {
 
     test('menolak panjang salah dan kata di luar kamus', () {
       final game = WordleGame(jawaban: 'rumah', kamus: kamus);
-      expect(game.tebak('kucing'), 'Kata harus 5 huruf.');
-      expect(game.tebak('xxxxx'), 'Kata tidak ada di kamus.');
+      expect(game.tebak('kucing')?.id, 'Kata harus 5 huruf.');
+      expect(game.tebak('xxxxx')?.id, 'Kata tidak ada di kamus.');
       expect(game.tebakan, isEmpty);
     });
 
@@ -268,17 +275,19 @@ void main() {
     test('huruf hijau wajib di posisinya, huruf kuning wajib dipakai', () {
       // makan vs rumah: M kuning, A ke-4 hijau.
       final sebelum = [('makan', nilaiTebakan('makan', 'rumah'))];
-      expect(cekModeSulit('pohon', sebelum), 'Mode sulit: huruf ke-4 harus A.');
-      expect(cekModeSulit('harum', sebelum), 'Mode sulit: huruf ke-4 harus A.');
+      expect(cekModeSulit('pohon', sebelum)?.id, 'Mode sulit: huruf ke-4 harus A.');
+      expect(cekModeSulit('harum', sebelum)?.id, 'Mode sulit: huruf ke-4 harus A.');
       expect(cekModeSulit('rumah', sebelum), isNull);
-      expect(cekModeSulit('pohan', sebelum),
+      expect(cekModeSulit('pohan', sebelum)?.id,
           'Mode sulit: tebakan harus memuat M.');
+      expect(cekModeSulit('pohan', sebelum)?.en,
+          'Hard mode: your guess must contain M.');
     });
 
     test('WordleGame menolak tebakan yang melanggar', () {
       final game = WordleGame(jawaban: 'rumah', kamus: kamus, modeSulit: true);
       expect(game.tebak('makan'), isNull);
-      expect(game.tebak('pohon'), 'Mode sulit: huruf ke-4 harus A.');
+      expect(game.tebak('pohon')?.id, 'Mode sulit: huruf ke-4 harus A.');
       expect(game.tebakan.length, 1);
       expect(game.tebak('rumah'), isNull);
       expect(game.menang, isTrue);
@@ -491,8 +500,8 @@ void main() {
     test('menolak input salah, menang, dan kalah', () {
       final standar = daftarTingkatHacker[1];
       final g = HackerGame.denganPin(standar, '4721');
-      expect(g.tebak('12'), 'PIN harus 4 digit angka.');
-      expect(g.tebak('12a4'), 'PIN harus 4 digit angka.');
+      expect(g.tebak('12')?.id, 'PIN harus 4 digit angka.');
+      expect(g.tebak('12a4')?.en, 'The PIN must be 4 digits.');
       expect(g.riwayat, isEmpty);
       expect(g.tebak('1724'), isNull);
       expect(g.riwayat.single.$2, const HasilPin(2, 2));
@@ -557,6 +566,8 @@ void main() {
       final teks = teksBagikanAngka(2, hasil, true);
       expect(teks, startsWith('Tebak Angka Harian #2 3/10\n'));
       expect(teks, isNot(contains('44')));
+      expect(teksBagikanAngka(2, hasil, true, inggris: true),
+          startsWith('Daily Number Guess #2 3/10\n'));
       expect(teks, contains('\u2705'));
     });
 
@@ -1013,6 +1024,39 @@ void main() {
       // Pilihan tema diingat setelah app dibuka ulang.
       await bukaUlang(tester, simpanan);
       expect(paletSekarang(), same(Palet.gelap));
+    });
+
+    testWidgets('tampilan bahasa Inggris di layar $nama', (tester) async {
+      final simpanan = SimpananMemori();
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      await ketuk(tester, find.byTooltip('Pengaturan'));
+      await ketuk(tester, find.text('English'));
+      await ketuk(tester, find.text('Close'));
+
+      expect(find.text('Number Guess'), findsOneWidget);
+      expect(find.text('Free play'), findsOneWidget);
+      expect(find.text('Hot-Cold'), findsOneWidget);
+      expect(find.text('Easy'), findsOneWidget);
+
+      await ketuk(tester, find.text('Start'));
+      expect(find.text('Tries left: 10 of 10'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '99');
+      await ketuk(tester, find.text('Guess'));
+      expect(find.text('The number must be between 1 and 50.'), findsOneWidget);
+
+      await ketuk(tester, find.text('Wordle'));
+      expect(find.text('New word'), findsOneWidget);
+      expect(find.text('Hard mode'), findsOneWidget);
+      await ketuk(tester, find.text('Hacker'));
+      expect(find.text('Security level'), findsOneWidget);
+      expect(find.text('Standard (4 digits)'), findsOneWidget);
+      await ketuk(tester, find.byTooltip('Achievements'));
+      expect(find.text('First step'), findsOneWidget);
+      await ketuk(tester, find.text('Close'));
+
+      // Bahasa diingat setelah app dibuka ulang.
+      await bukaUlang(tester, simpanan);
+      expect(find.text('Number Guess'), findsOneWidget);
     });
 
     testWidgets('wordle di layar $nama', (tester) async {

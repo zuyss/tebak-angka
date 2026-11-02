@@ -2,6 +2,8 @@
 
 import 'dart:math';
 
+import 'dua.dart';
+
 enum Bahasa {
   id('Indonesia', 'id'),
   en('English', 'en');
@@ -78,17 +80,21 @@ class KamusWordle {
 /// ketemu wajib dipakai lagi. Huruf hijau harus tetap di posisinya, huruf
 /// kuning harus ada di tebakan (di posisi mana pun).
 /// Kembalikan pesan pelanggaran pertama, atau null kalau tebakan sah.
-String? cekModeSulit(
+Dua? cekModeSulit(
     String kata, List<(String, List<StatusHuruf>)> tebakanSebelumnya) {
   for (final (lama, nilai) in tebakanSebelumnya) {
     for (var i = 0; i < lama.length; i++) {
       if (nilai[i] == StatusHuruf.benar && kata[i] != lama[i]) {
-        return 'Mode sulit: huruf ke-${i + 1} harus ${lama[i].toUpperCase()}.';
+        final h = lama[i].toUpperCase();
+        return Dua('Mode sulit: huruf ke-${i + 1} harus $h.',
+            'Hard mode: letter ${i + 1} must be $h.');
       }
     }
     for (var i = 0; i < lama.length; i++) {
       if (nilai[i] == StatusHuruf.ada && !kata.contains(lama[i])) {
-        return 'Mode sulit: tebakan harus memuat ${lama[i].toUpperCase()}.';
+        final h = lama[i].toUpperCase();
+        return Dua('Mode sulit: tebakan harus memuat $h.',
+            'Hard mode: your guess must contain $h.');
       }
     }
   }
@@ -127,13 +133,17 @@ class WordleGame {
   }
 
   /// Kembalikan pesan error kalau tebakan ditolak, atau null kalau diterima.
-  String? tebak(String kata) {
+  Dua? tebak(String kata) {
     if (selesai) {
       throw StateError('Permainan sudah selesai, mulai kata baru.');
     }
     final k = kata.trim().toLowerCase();
-    if (k.length != panjang) return 'Kata harus $panjang huruf.';
-    if (!kamus.valid.contains(k)) return 'Kata tidak ada di kamus.';
+    if (k.length != panjang) {
+      return Dua('Kata harus $panjang huruf.', 'The word must be $panjang letters.');
+    }
+    if (!kamus.valid.contains(k)) {
+      return const Dua('Kata tidak ada di kamus.', 'Not in the word list.');
+    }
     if (modeSulit) {
       final pelanggaran = cekModeSulit(k, tebakan);
       if (pelanggaran != null) return pelanggaran;

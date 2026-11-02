@@ -77,11 +77,11 @@ Color warnaSuhu(Suhu suhu) => switch (suhu) {
       Suhu.membara => const Color(0xFFEF4444),
     };
 
-String teksArah(Arah arah) => switch (arah) {
+String teksArah(BuildContext context, Arah arah) => switch (arah) {
       Arah.pertama => '',
-      Arah.mendekat => 'Makin dekat dari tebakan sebelumnya',
-      Arah.menjauh => 'Makin jauh dari tebakan sebelumnya',
-      Arah.sama => 'Jaraknya sama dengan tebakan sebelumnya',
+      Arah.mendekat => context.tr('Makin dekat dari tebakan sebelumnya', 'Closer than your last guess'),
+      Arah.menjauh => context.tr('Makin jauh dari tebakan sebelumnya', 'Further than your last guess'),
+      Arah.sama => context.tr('Jaraknya sama dengan tebakan sebelumnya', 'Same distance as your last guess'),
     };
 
 IconData ikonArah(Arah arah) => switch (arah) {
@@ -151,8 +151,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       _gameHarian = false;
       _tebakan.clear();
       _komputer = KomputerMenebak(_level);
-      _pesan = 'Pikirkan satu angka antara ${_level.bawah} dan '
-          '${_level.atas}. Jangan diketik, cukup diingat.';
+      _pesan = context.tr('Pikirkan satu angka antara ${_level.bawah} dan '
+          '${_level.atas}. Jangan diketik, cukup diingat.', 'Think of a number between ${_level.bawah} and ${_level.atas}. No need to type it, just remember it.');
     });
   }
 
@@ -166,15 +166,15 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       switch (k.status) {
         case StatusKomputer.menang:
           _komputerMenang++;
-          _pesan = 'Yes! Aku menebak angkamu dalam ${k.percobaan} percobaan.';
+          _pesan = context.tr('Yes! Aku menebak angkamu dalam ${k.percobaan} percobaan.', 'Yes! I guessed your number in ${k.percobaan} tries.');
         case StatusKomputer.kalah:
           _komputerKalah++;
-          _pesan = 'Aku kalah, percobaan habis. Angkamu ada di antara '
-              '${k.bawah} dan ${k.atas}.';
+          _pesan = context.tr('Aku kalah, percobaan habis. Angkamu ada di antara '
+              '${k.bawah} dan ${k.atas}.', 'I lost, out of tries. Your number is between ${k.bawah} and ${k.atas}.');
         case StatusKomputer.bertentangan:
           // Nggak dihitung menang/kalah, sama seperti versi Python.
-          _pesan = 'Hmm, jawabanmu saling bertentangan. '
-              'Nggak ada angka yang cocok.';
+          _pesan = context.tr('Hmm, jawabanmu saling bertentangan. '
+              'Nggak ada angka yang cocok.', 'Hmm, your answers contradict each other. No number fits.');
         case StatusKomputer.berjalan:
           _pesan = null;
       }
@@ -213,7 +213,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       _game = null;
       _gameDuel = false;
       _tebakan.clear();
-      _pesan = 'Duel dibatalkan.';
+      _pesan = context.tr('Duel dibatalkan.', 'Duel cancelled.');
     });
   }
 
@@ -222,7 +222,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
     if (duel == null || !_duelMenungguRahasia) return;
     final parse = parseTebakan(_inputRahasia.text, _level);
     if (parse.error != null) {
-      setState(() => _pesan = parse.error);
+      setState(() => _pesan = context.dua(parse.error!));
       return;
     }
     final penebak = duel.tahap == TahapDuel.rahasia1 ? 2 : 1;
@@ -232,7 +232,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       _gameDuel = true;
       _inputRahasia.clear();
       _tebakan.clear();
-      _pesan = 'Pemain $penebak, giliranmu menebak.';
+      _pesan = context.tr('Pemain $penebak, giliranmu menebak.', 'Player $penebak, your turn to guess.');
     });
     _fokus.requestFocus();
   }
@@ -298,9 +298,9 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         ..clear()
         ..addAll(hasil.reversed);
       _pesan = hasil.isEmpty
-          ? 'Tantangan #${nomorHarian(sekarang)}: semua pemain dapat angka '
-              'yang sama hari ini.'
-          : 'Lanjut dari tebakan terakhirmu.';
+          ? context.tr('Tantangan #${nomorHarian(sekarang)}: semua pemain dapat angka '
+              'yang sama hari ini.', 'Challenge #${nomorHarian(sekarang)}: every player gets the same number today.')
+          : context.tr('Lanjut dari tebakan terakhirmu.', 'Continuing from your last guess.');
       _input.clear();
     });
     _fokus.requestFocus();
@@ -309,11 +309,12 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   Future<void> _salinHasilHarian() async {
     final (game, hasil) = _putarUlangHarian();
     final teks =
-        teksBagikanAngka(nomorHarian(widget.jam()), hasil, game.menang);
+        teksBagikanAngka(nomorHarian(widget.jam()), hasil, game.menang,
+            inggris: context.inggris);
     await Clipboard.setData(ClipboardData(text: teks));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Hasil disalin. Tempel di chat atau story.')),
+      SnackBar(content: Text(context.tr('Hasil disalin. Tempel di chat atau story.', 'Result copied. Paste it in a chat or story.'))),
     );
   }
 
@@ -400,7 +401,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   String _keteranganJumlah(String tambahan) {
     final bagian = <String>[
       if (_jumlahRonde > _maksTampil)
-        '$_maksTampil dari $_jumlahRonde ronde terakhir.',
+        context.tr('$_maksTampil dari $_jumlahRonde ronde terakhir.', 'Last $_maksTampil of $_jumlahRonde rounds.'),
       if (tambahan.isNotEmpty) tambahan,
     ];
     return bagian.join(' ');
@@ -415,7 +416,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       _komputer = null;
       _gameHarian = false;
       _game = TebakAngkaGame(_level, mode: _mode);
-      _pesan = 'Aku sudah pilih angka antara ${_level.bawah} dan ${_level.atas}.';
+      _pesan = context.tr('Aku sudah pilih angka antara ${_level.bawah} dan ${_level.atas}.', 'I have picked a number between ${_level.bawah} and ${_level.atas}.');
       _tebakan.clear();
       _input.clear();
     });
@@ -428,7 +429,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
 
     final parse = parseTebakan(_input.text, game.level);
     if (parse.error != null) {
-      setState(() => _pesan = parse.error);
+      setState(() => _pesan = context.dua(parse.error!));
       // Teks salah tetap terlihat, tapi diblok semua: ketikan berikutnya
       // langsung menimpa, nggak menumpuk jadi "999".
       _input.selection =
@@ -454,16 +455,16 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           duel.selesaiMenebak(menang: game.menang, percobaan: game.percobaan);
           _gameDuel = false;
           _pesan = game.menang
-              ? 'Pemain $penebak menebak ${game.rahasia} dalam '
-                  '${game.percobaan} percobaan.'
-              : 'Pemain $penebak gagal. Angkanya ${game.rahasia}.';
+              ? context.tr('Pemain $penebak menebak ${game.rahasia} dalam '
+                  '${game.percobaan} percobaan.', 'Player $penebak guessed ${game.rahasia} in ${game.percobaan} tries.')
+              : context.tr('Pemain $penebak gagal. Angkanya ${game.rahasia}.', 'Player $penebak failed. The number was ${game.rahasia}.');
           if (duel.tahap == TahapDuel.selesai) {
             _pesan = '$_pesan ${_teksHasilDuel(duel)}';
           } else {
-            _pesan = '$_pesan Sekarang Pemain 2 bikin angka rahasia.';
+            _pesan = context.tr('$_pesan Sekarang Pemain 2 bikin angka rahasia.', '$_pesan Now Player 2 picks a secret number.');
           }
         } else {
-          _pesan = '${hasil.angka}: ${hasil.suhu!.label}!';
+          _pesan = context.tr('${hasil.angka}: ${hasil.suhu!.label}!', '${hasil.angka}: ${hasil.suhu!.labelEn}!');
         }
       });
       if (!game.selesai) _fokus.requestFocus();
@@ -478,16 +479,16 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       _tebakan.insert(0, hasil);
 
       if (hasil.benar) {
-        _pesan = 'Benar! Angkanya ${game.rahasia}. '
-            'Kamu menang dalam ${game.percobaan} percobaan.';
+        _pesan = context.tr('Benar! Angkanya ${game.rahasia}. '
+            'Kamu menang dalam ${game.percobaan} percobaan.', 'Correct! The number is ${game.rahasia}. You won in ${game.percobaan} tries.');
       } else if (game.selesai) {
-        _pesan = 'Percobaan habis. Angka yang benar: ${game.rahasia}.';
+        _pesan = context.tr('Percobaan habis. Angka yang benar: ${game.rahasia}.', 'Out of tries. The right number was ${game.rahasia}.');
       } else if (hasil.suhu != null) {
-        _pesan = '${hasil.angka}: ${hasil.suhu!.label}!';
+        _pesan = context.tr('${hasil.angka}: ${hasil.suhu!.label}!', '${hasil.angka}: ${hasil.suhu!.labelEn}!');
       } else if (hasil.petunjukBaru != null) {
-        _pesan = '${hasil.angka} bukan jawabannya. Ada petunjuk baru.';
+        _pesan = context.tr('${hasil.angka} bukan jawabannya. Ada petunjuk baru.', '${hasil.angka} is not it. New clue unlocked.');
       } else {
-        _pesan = '${hasil.angka} bukan jawabannya. Petunjuk sudah habis.';
+        _pesan = context.tr('${hasil.angka} bukan jawabannya. Petunjuk sudah habis.', '${hasil.angka} is not it. No clues left.');
       }
 
       if (game.selesai) {
@@ -508,7 +509,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           final lama = _rekorPer[kunci];
           if (lama == null || game.percobaan < lama) {
             _rekorPer[kunci] = game.percobaan;
-            _pesan = '$_pesan Rekor baru!';
+            _pesan = context.tr('$_pesan Rekor baru!', '$_pesan New record!');
           }
         } else {
           _jumlahKalah++;
@@ -599,7 +600,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _judul('Ronde sekarang'),
+          _judul(context.tr('Ronde sekarang', 'Current round')),
           const SizedBox(height: 16),
           if (game != null && !game.selesai)
             ..._areaMain(game)
@@ -622,7 +623,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           ],
           if (_tebakan.isNotEmpty) ...[
             const SizedBox(height: 16),
-            _label('Tebakan ronde ini'),
+            _label(context.tr('Tebakan ronde ini', 'Guesses this round')),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -640,10 +641,10 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final (jenis, label) in const [
-              (_Jenis.bebas, 'Main bebas'),
-              (_Jenis.harian, 'Tantangan harian'),
-              (_Jenis.komputer, 'Komputer menebak'),
+            for (final (jenis, label) in [
+              (_Jenis.bebas, context.tr('Main bebas', 'Free play')),
+              (_Jenis.harian, context.tr('Tantangan harian', 'Daily challenge')),
+              (_Jenis.komputer, context.tr('Komputer menebak', 'Computer guesses')),
               (_Jenis.duel, 'Duel'),
             ])
               PilihanKaca(
@@ -668,7 +669,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         children: [
           for (final level in daftarLevel)
             PilihanKaca(
-              label: level.nama,
+              label: context.tr(level.nama, level.namaEn),
               dipilih: level == _level,
               onTap: () => _pilihLevel(level),
             ),
@@ -676,25 +677,25 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       );
 
   String _teksHasilDuel(Duel duel) => switch (duel.hasil) {
-        HasilDuel.pemain1 => 'Pemain 1 menang!',
-        HasilDuel.pemain2 => 'Pemain 2 menang!',
-        HasilDuel.seri => 'Seri!',
+        HasilDuel.pemain1 => context.tr('Pemain 1 menang!', 'Player 1 wins!'),
+        HasilDuel.pemain2 => context.tr('Pemain 2 menang!', 'Player 2 wins!'),
+        HasilDuel.seri => context.tr('Seri!', 'Draw!'),
         null => '',
       };
 
   List<Widget> _areaPilihDuel() {
     final duel = _duel;
     return [
-      _label('Dua pemain, satu perangkat. Pemain 1 bikin angka rahasia, '
+      _label(context.tr('Dua pemain, satu perangkat. Pemain 1 bikin angka rahasia, '
           'Pemain 2 menebak (pakai petunjuk Panas-Dingin). Lalu gantian. '
-          'Yang butuh percobaan paling sedikit menang.'),
+          'Yang butuh percobaan paling sedikit menang.', 'Two players, one device. Player 1 picks a secret number, Player 2 guesses it (with Hot-Cold hints). Then swap. Fewest tries wins.')),
       const SizedBox(height: 14),
-      _label('Pilih level'),
+      _label(context.tr('Pilih level', 'Choose a level')),
       const SizedBox(height: 6),
       _pilihanLevel(),
       const SizedBox(height: 6),
-      _label('Angka ${_level.bawah}-${_level.atas}, '
-          '${_level.nyawa} percobaan per giliran'),
+      _label(context.tr('Angka ${_level.bawah}-${_level.atas}, '
+          '${_level.nyawa} percobaan per giliran', 'Numbers ${_level.bawah}-${_level.atas}, ${_level.nyawa} tries per turn')),
       if (duel != null && duel.tahap == TahapDuel.selesai) ...[
         const SizedBox(height: 14),
         Text(
@@ -706,14 +707,14 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           ),
         ),
         const SizedBox(height: 4),
-        _label('Pemain 1: ${duel.teksSkor(duel.skor1)}   '
-            'Pemain 2: ${duel.teksSkor(duel.skor2)}'),
+        _label(context.tr('Pemain 1: ${duel.teksSkor(duel.skor1)}   '
+            'Pemain 2: ${duel.teksSkor(duel.skor2)}', 'Player 1: ${duel.teksSkor(duel.skor1, inggris: true)}   Player 2: ${duel.teksSkor(duel.skor2, inggris: true)}')),
       ],
       const SizedBox(height: 18),
       Align(
         alignment: Alignment.centerLeft,
         child: TombolUtama(
-          label: duel == null ? 'Mulai duel' : 'Duel lagi',
+          label: duel == null ? context.tr('Mulai duel', 'Start duel') : context.tr('Duel lagi', 'Rematch'),
           ikon: Icons.people_outline,
           onPressed: _mulaiDuel,
         ),
@@ -726,10 +727,10 @@ class _HalamanAngkaState extends State<HalamanAngka> {
     final pembuat = duel.pemainAktif;
     final penebak = pembuat == 1 ? 2 : 1;
     return [
-      _label('Duel - Level ${_level.nama}'),
+      _label(context.tr('Duel - Level ${_level.nama}', 'Duel - Level ${_level.namaEn}')),
       const SizedBox(height: 4),
       Text(
-        'Pemain $pembuat, bikin angka rahasia',
+        context.tr('Pemain $pembuat, bikin angka rahasia', 'Player $pembuat, pick a secret number'),
         style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w800,
@@ -737,11 +738,11 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         ),
       ),
       const SizedBox(height: 4),
-      _label('Angka ${_level.bawah}-${_level.atas}. '
-          'Pemain $penebak jangan lihat layar dulu!'),
+      _label(context.tr('Angka ${_level.bawah}-${_level.atas}. '
+          'Pemain $penebak jangan lihat layar dulu!', 'Numbers ${_level.bawah}-${_level.atas}. Player $penebak, do not look at the screen yet!')),
       if (duel.skor2 != null) ...[
         const SizedBox(height: 4),
-        _label('Skor Pemain 2: ${duel.teksSkor(duel.skor2)}'),
+        _label(context.tr('Skor Pemain 2: ${duel.teksSkor(duel.skor2)}', 'Player 2 score: ${duel.teksSkor(duel.skor2, inggris: true)}')),
       ],
       const SizedBox(height: 14),
       Row(
@@ -764,7 +765,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                 color: context.palet.teks,
               ),
               decoration: InputDecoration(
-                hintText: 'Angka rahasia',
+                hintText: context.tr('Angka rahasia', 'Secret number'),
                 filled: true,
                 fillColor: context.palet.isi,
                 border: OutlineInputBorder(
@@ -776,7 +777,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
             ),
           ),
           const SizedBox(width: 12),
-          TombolUtama(label: 'Kunci', onPressed: _kunciRahasia),
+          TombolUtama(label: context.tr('Kunci', 'Lock'), onPressed: _kunciRahasia),
         ],
       ),
       const SizedBox(height: 10),
@@ -784,30 +785,30 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         alignment: Alignment.centerLeft,
         child: TextButton(
           onPressed: _batalDuel,
-          child: const Text('Batal duel'),
+          child: Text(context.tr('Batal duel', 'Cancel duel')),
         ),
       ),
     ];
   }
 
   List<Widget> _areaPilihKomputer() => [
-        _label('Kamu pikirkan angkanya, aku yang menebak. Aku pakai binary '
+        _label(context.tr('Kamu pikirkan angkanya, aku yang menebak. Aku pakai binary '
             'search: selalu menebak tengah-tengah, jadi tiap jawabanmu '
-            'memotong kemungkinan jadi setengah.'),
+            'memotong kemungkinan jadi setengah.', 'You think of the number, I guess it. I use binary search: always guessing the middle, so each answer cuts the possibilities in half.')),
         const SizedBox(height: 14),
-        _label('Pilih level'),
+        _label(context.tr('Pilih level', 'Choose a level')),
         const SizedBox(height: 6),
         _pilihanLevel(),
         const SizedBox(height: 6),
-        _label('Angka ${_level.bawah}-${_level.atas}, aku punya '
-            '${_level.nyawa} percobaan'),
+        _label(context.tr('Angka ${_level.bawah}-${_level.atas}, aku punya '
+            '${_level.nyawa} percobaan', 'Numbers ${_level.bawah}-${_level.atas}, I get ${_level.nyawa} tries')),
         const SizedBox(height: 6),
-        _label('Skor komputer: $_komputerMenang menang, $_komputerKalah kalah'),
+        _label(context.tr('Skor komputer: $_komputerMenang menang, $_komputerKalah kalah', 'Computer score: $_komputerMenang won, $_komputerKalah lost')),
         const SizedBox(height: 18),
         Align(
           alignment: Alignment.centerLeft,
           child: TombolUtama(
-            label: 'Mulai',
+            label: context.tr('Mulai', 'Start'),
             ikon: Icons.play_arrow_rounded,
             onPressed: _mulaiKomputer,
           ),
@@ -815,11 +816,11 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       ];
 
   List<Widget> _areaKomputer(KomputerMenebak k) => [
-        _label('Level ${k.level.nama} - tebakan ke-${k.percobaan} '
-            'dari ${k.level.nyawa}'),
+        _label(context.tr('Level ${k.level.nama} - tebakan ke-${k.percobaan} '
+            'dari ${k.level.nyawa}', 'Level ${k.level.namaEn} - guess ${k.percobaan} of ${k.level.nyawa}')),
         const SizedBox(height: 4),
         Text(
-          'Aku tebak ${k.tebakan}',
+          context.tr('Aku tebak ${k.tebakan}', 'My guess: ${k.tebakan}'),
           style: TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.w900,
@@ -829,25 +830,25 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         const SizedBox(height: 14),
         _barRentang(k),
         const SizedBox(height: 6),
-        _label('Sisa kemungkinan: ${k.sisaKemungkinan} angka '
-            '(${k.bawah}-${k.atas})'),
+        _label(context.tr('Sisa kemungkinan: ${k.sisaKemungkinan} angka '
+            '(${k.bawah}-${k.atas})', 'Possibilities left: ${k.sisaKemungkinan} numbers (${k.bawah}-${k.atas})')),
         const SizedBox(height: 18),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
             PilihanKaca(
-              label: 'Terlalu besar',
+              label: context.tr('Terlalu besar', 'Too high'),
               dipilih: false,
               onTap: () => _jawabKomputer(Jawaban.terlaluBesar),
             ),
             PilihanKaca(
-              label: 'Terlalu kecil',
+              label: context.tr('Terlalu kecil', 'Too low'),
               dipilih: false,
               onTap: () => _jawabKomputer(Jawaban.terlaluKecil),
             ),
             TombolUtama(
-              label: 'Benar!',
+              label: context.tr('Benar!', 'Correct!'),
               onPressed: () => _jawabKomputer(Jawaban.benar),
             ),
           ],
@@ -924,12 +925,12 @@ class _HalamanAngkaState extends State<HalamanAngka> {
 
     if (game.selesai) {
       return [
-        _label('Tantangan #$nomor'),
+        _label(context.tr('Tantangan #$nomor', 'Challenge #$nomor')),
         const SizedBox(height: 4),
         Text(
           game.menang
-              ? 'Kamu menang dalam ${hasil.length} percobaan.'
-              : 'Belum beruntung. Angkanya ${game.rahasia}.',
+              ? context.tr('Kamu menang dalam ${hasil.length} percobaan.', 'You won in ${hasil.length} tries.')
+              : context.tr('Belum beruntung. Angkanya ${game.rahasia}.', 'Not this time. The number was ${game.rahasia}.'),
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
@@ -937,12 +938,12 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           ),
         ),
         const SizedBox(height: 6),
-        _label('Tantangan berikutnya besok.'),
+        _label(context.tr('Tantangan berikutnya besok.', 'Next challenge tomorrow.')),
         const SizedBox(height: 18),
         Align(
           alignment: Alignment.centerLeft,
           child: TombolUtama(
-            label: 'Salin hasil',
+            label: context.tr('Salin hasil', 'Copy result'),
             ikon: Icons.share_outlined,
             onPressed: _salinHasilHarian,
           ),
@@ -951,17 +952,17 @@ class _HalamanAngkaState extends State<HalamanAngka> {
     }
 
     return [
-      _label('Tantangan #$nomor - Panas-Dingin, angka '
+      _label(context.tr('Tantangan #$nomor - Panas-Dingin, angka '
           '${levelHarian.bawah}-${levelHarian.atas}, '
-          '${levelHarian.nyawa} percobaan'),
+          '${levelHarian.nyawa} percobaan', 'Challenge #$nomor - Hot-Cold, numbers ${levelHarian.bawah}-${levelHarian.atas}, ${levelHarian.nyawa} tries')),
       const SizedBox(height: 6),
-      _label('Semua pemain dapat angka yang sama hari ini, '
-          'dan cuma bisa dimainkan sekali.'),
+      _label(context.tr('Semua pemain dapat angka yang sama hari ini, '
+          'dan cuma bisa dimainkan sekali.', 'Every player gets the same number today, and it can only be played once.')),
       const SizedBox(height: 18),
       Align(
         alignment: Alignment.centerLeft,
         child: TombolUtama(
-          label: hasil.isEmpty ? 'Mulai' : 'Lanjutkan',
+          label: hasil.isEmpty ? context.tr('Mulai', 'Start') : context.tr('Lanjutkan', 'Continue'),
           ikon: Icons.play_arrow_rounded,
           onPressed: _mulaiHarian,
         ),
@@ -978,25 +979,25 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           children: [
             for (final m in Mode.values)
               PilihanKaca(
-                label: m.nama,
+                label: context.tr(m.nama, m.namaEn),
                 dipilih: m == _mode,
                 onTap: () => _pilihMode(m),
               ),
           ],
         ),
         const SizedBox(height: 6),
-        _label(_mode.deskripsi),
+        _label(context.tr(_mode.deskripsi, _mode.deskripsiEn)),
         const SizedBox(height: 14),
-        _label('Pilih level'),
+        _label(context.tr('Pilih level', 'Choose a level')),
         const SizedBox(height: 6),
         _pilihanLevel(),
         const SizedBox(height: 6),
-        _label('Angka ${_level.bawah}-${_level.atas}, ${_level.nyawa} percobaan'),
+        _label(context.tr('Angka ${_level.bawah}-${_level.atas}, ${_level.nyawa} percobaan', 'Numbers ${_level.bawah}-${_level.atas}, ${_level.nyawa} tries')),
         const SizedBox(height: 18),
         Align(
           alignment: Alignment.centerLeft,
           child: TombolUtama(
-            label: 'Mulai',
+            label: context.tr('Mulai', 'Start'),
             ikon: Icons.play_arrow_rounded,
             onPressed: _mulai,
           ),
@@ -1007,13 +1008,13 @@ class _HalamanAngkaState extends State<HalamanAngka> {
     final terakhir = _tebakan.isEmpty ? null : _tebakan.first;
     return [
       _label(_gameDuel
-          ? 'Duel - Pemain ${_duel?.pemainAktif} menebak '
-              '(${game.level.bawah}-${game.level.atas})'
-          : '${game.mode.nama} - Level ${game.level.nama} '
-              '(${game.level.bawah}-${game.level.atas})'),
+          ? context.tr('Duel - Pemain ${_duel?.pemainAktif} menebak '
+              '(${game.level.bawah}-${game.level.atas})', 'Duel - Player ${_duel?.pemainAktif} guessing (${game.level.bawah}-${game.level.atas})')
+          : context.tr('${game.mode.nama} - Level ${game.level.nama} '
+              '(${game.level.bawah}-${game.level.atas})', '${game.mode.namaEn} - Level ${game.level.namaEn} (${game.level.bawah}-${game.level.atas})')),
       const SizedBox(height: 4),
       Text(
-        'Sisa percobaan: ${game.sisa} dari ${game.level.nyawa}',
+        context.tr('Sisa percobaan: ${game.sisa} dari ${game.level.nyawa}', 'Tries left: ${game.sisa} of ${game.level.nyawa}'),
         style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w800,
@@ -1031,7 +1032,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
             children: [
               Icon(ikonArah(terakhir.arah), size: 18, color: context.palet.teksRedup),
               const SizedBox(width: 6),
-              Expanded(child: _label(teksArah(terakhir.arah))),
+              Expanded(child: _label(teksArah(context, terakhir.arah))),
             ],
           ),
         ],
@@ -1063,7 +1064,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                 color: context.palet.teks,
               ),
               decoration: InputDecoration(
-                hintText: 'Tebakan kamu',
+                hintText: context.tr('Tebakan kamu', 'Your guess'),
                 filled: true,
                 fillColor: context.palet.isi,
                 border: OutlineInputBorder(
@@ -1084,7 +1085,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
             ),
           ),
           const SizedBox(width: 12),
-          TombolUtama(label: 'Tebak', onPressed: _kirim),
+          TombolUtama(label: context.tr('Tebak', 'Guess'), onPressed: _kirim),
         ],
       ),
     ];
@@ -1129,7 +1130,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                   fontWeight: FontWeight.w900,
                   color: warna,
                 ),
-                child: Text(suhu?.label ?? 'Ayo tebak dulu'),
+                child: Text(suhu?.label ?? context.tr('Ayo tebak dulu', 'Make a guess')),
               ),
             ),
           ],
@@ -1178,7 +1179,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _label('Petunjuk (${game.petunjukTerbuka.length} terbuka)'),
+        _label(context.tr('Petunjuk (${game.petunjukTerbuka.length} terbuka)', 'Clues (${game.petunjukTerbuka.length} unlocked)')),
         const SizedBox(height: 8),
         for (final p in game.petunjukTerbuka)
           Padding(
@@ -1196,7 +1197,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      p,
+                      context.dua(p),
                       style: TextStyle(
                         color: context.palet.teks,
                         fontWeight: FontWeight.w600,
@@ -1217,13 +1218,13 @@ class _HalamanAngkaState extends State<HalamanAngka> {
     final String keterangan;
     if (t.benar) {
       warna = warnaHijau;
-      keterangan = 'benar';
+      keterangan = context.tr('benar', 'correct');
     } else if (suhu != null) {
       warna = warnaSuhu(suhu);
-      keterangan = suhu.label.toLowerCase();
+      keterangan = context.tr(suhu.label, suhu.labelEn).toLowerCase();
     } else {
       warna = context.palet.teks;
-      keterangan = 'salah';
+      keterangan = context.tr('salah', 'wrong');
     }
 
     return Container(
@@ -1247,14 +1248,14 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           children: [
             Expanded(
               child: _kartuAngka(
-                'Menang',
+                context.tr('Menang', 'Won'),
                 '$_jumlahMenang',
                 Icons.emoji_events_outlined,
                 aksen: true,
               ),
             ),
             const SizedBox(width: 16),
-            Expanded(child: _kartuAngka('Kalah', '$_jumlahKalah', Icons.close)),
+            Expanded(child: _kartuAngka(context.tr('Kalah', 'Lost'), '$_jumlahKalah', Icons.close)),
           ],
         ),
         const SizedBox(height: 16),
@@ -1264,7 +1265,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
             const SizedBox(width: 16),
             Expanded(
               child: _kartuAngka(
-                'Rekor ${_modeTampil.nama} ${_levelTampil.nama}',
+                context.tr('Rekor ${_modeTampil.nama} ${_levelTampil.nama}', 'Best ${_modeTampil.namaEn} ${_levelTampil.namaEn}'),
                 _rekor,
                 Icons.bolt,
               ),
@@ -1319,14 +1320,14 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _judul('Percobaan per ronde'),
+          _judul(context.tr('Percobaan per ronde', 'Tries per round')),
           const SizedBox(height: 4),
-          _label(_keteranganJumlah('Hitam menang, abu-abu kalah')),
+          _label(_keteranganJumlah(context.tr('Warna pekat menang, abu-abu kalah', 'Solid = won, gray = lost'))),
           const SizedBox(height: 16),
           SizedBox(
             height: 180,
             child: data.isEmpty
-                ? Center(child: _label('Belum ada ronde selesai.'))
+                ? Center(child: _label(context.tr('Belum ada ronde selesai.', 'No finished rounds yet.')))
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -1382,7 +1383,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _judul('Riwayat ronde'),
+          _judul(context.tr('Riwayat ronde', 'Round history')),
           if (_jumlahRonde > _maksTampil) ...[
             const SizedBox(height: 4),
             _label(_keteranganJumlah('')),
@@ -1391,16 +1392,16 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           if (_ronde.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              child: _label('Selesaikan satu ronde, hasilnya muncul di sini.'),
+              child: _label(context.tr('Selesaikan satu ronde, hasilnya muncul di sini.', 'Finish a round and it will show up here.')),
             )
           else ...[
             Row(
               children: [
                 Expanded(child: Text('Mode', style: gayaKepala)),
                 Expanded(child: Text('Level', style: gayaKepala)),
-                Expanded(child: Text('Angka', style: gayaKepala)),
-                Expanded(child: Text('Percobaan', style: gayaKepala)),
-                Expanded(child: Text('Hasil', style: gayaKepala)),
+                Expanded(child: Text(context.tr('Angka', 'Number'), style: gayaKepala)),
+                Expanded(child: Text(context.tr('Percobaan', 'Tries'), style: gayaKepala)),
+                Expanded(child: Text(context.tr('Hasil', 'Result'), style: gayaKepala)),
               ],
             ),
             Divider(color: context.palet.jalur),
@@ -1409,8 +1410,12 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
                   children: [
-                    Expanded(child: Text(r.mode.nama, style: gayaIsi)),
-                    Expanded(child: Text(r.level.nama, style: gayaIsi)),
+                    Expanded(
+                        child: Text(context.tr(r.mode.nama, r.mode.namaEn),
+                            style: gayaIsi)),
+                    Expanded(
+                        child: Text(context.tr(r.level.nama, r.level.namaEn),
+                            style: gayaIsi)),
                     Expanded(child: Text('${r.rahasia}', style: gayaIsi)),
                     Expanded(child: Text('${r.percobaan}', style: gayaIsi)),
                     Expanded(
@@ -1424,7 +1429,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            r.menang ? 'Menang' : 'Kalah',
+                            r.menang ? context.tr('Menang', 'Won') : context.tr('Kalah', 'Lost'),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,

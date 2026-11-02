@@ -6,6 +6,7 @@ import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import 'dua.dart';
 import 'simpanan.dart';
 
 class Pengaturan extends ChangeNotifier {
@@ -14,6 +15,7 @@ class Pengaturan extends ChangeNotifier {
     if (data != null) {
       _animasiLatar = data['animasiLatar'] != false;
       _getar = data['getar'] != false;
+      _inggris = data['bahasa'] == 'en';
       _tema = ThemeMode.values.where((m) => m.name == data['tema']).firstOrNull ??
           ThemeMode.system;
     }
@@ -31,6 +33,15 @@ class Pengaturan extends ChangeNotifier {
   bool _animasiLatar = true;
   bool _getar = true;
   ThemeMode _tema = ThemeMode.system;
+  bool _inggris = false;
+
+  /// Bahasa tampilan: Indonesia (bawaan) atau Inggris.
+  bool get inggris => _inggris;
+  set inggris(bool nilai) {
+    if (nilai == _inggris) return;
+    _inggris = nilai;
+    _simpanDanKabari();
+  }
 
   /// Tema terang, gelap, atau ikut setting sistem (bawaan).
   ThemeMode get tema => _tema;
@@ -61,6 +72,7 @@ class Pengaturan extends ChangeNotifier {
       'animasiLatar': _animasiLatar,
       'getar': _getar,
       'tema': _tema.name,
+      'bahasa': _inggris ? 'en' : 'id',
     });
     notifyListeners();
   }
@@ -98,4 +110,15 @@ class PengaturanScope extends InheritedNotifier<Pengaturan> {
   /// Dipakai dari handler tombol, bukan dari build.
   static Pengaturan? baca(BuildContext context) =>
       context.getInheritedWidgetOfExactType<PengaturanScope>()?.notifier;
+}
+
+/// Teks sesuai bahasa tampilan yang dipilih di Pengaturan.
+extension TeksDariContext on BuildContext {
+  bool get inggris => PengaturanScope.dari(this)?.inggris ?? false;
+
+  /// Pilih versi Indonesia atau Inggris.
+  String tr(String id, String en) => inggris ? en : id;
+
+  /// Pilih versi dari teks dua bahasa buatan file logika.
+  String dua(Dua teks) => teks.pilih(inggris: inggris);
 }

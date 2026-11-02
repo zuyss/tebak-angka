@@ -74,15 +74,15 @@ class _HalamanHackerState extends State<HalamanHacker> {
       _game = HackerGame.denganPin(_tingkat, pin);
       _inputPin.clear();
       _pesan = null;
-      _infoDuel = 'Pemain $penebak, bobol PIN-nya.';
+      _infoDuel = context.tr('Pemain $penebak, bobol PIN-nya.', 'Player $penebak, crack the PIN.');
     });
     _fokus.requestFocus();
   }
 
   String _teksHasilDuel(Duel duel) => switch (duel.hasil) {
-        HasilDuel.pemain1 => 'Pemain 1 menang!',
-        HasilDuel.pemain2 => 'Pemain 2 menang!',
-        HasilDuel.seri => 'Seri!',
+        HasilDuel.pemain1 => context.tr('Pemain 1 menang!', 'Player 1 wins!'),
+        HasilDuel.pemain2 => context.tr('Pemain 2 menang!', 'Player 2 wins!'),
+        HasilDuel.seri => context.tr('Seri!', 'Draw!'),
         null => '',
       };
 
@@ -143,7 +143,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
       _inputPin.clear();
       _duel = _modeDuel ? Duel(nyawa: _tingkat.nyawa) : null;
       _infoDuel = _modeDuel
-          ? 'Pemain 1, pasang PIN. Pemain 2 jangan lihat layar!'
+          ? context.tr('Pemain 1, pasang PIN. Pemain 2 jangan lihat layar!', 'Player 1, set a PIN. Player 2, do not look at the screen!')
           : null;
     });
     if (tingkat != null) _simpan();
@@ -161,7 +161,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
       PengaturanScope.baca(context)?.getarkan(kuat: game.selesai);
     }
     if (error != null) {
-      setState(() => _pesan = error);
+      setState(() => _pesan = context.dua(error));
       _input.selection =
           TextSelection(baseOffset: 0, extentOffset: _input.text.length);
       _fokus.requestFocus();
@@ -177,14 +177,14 @@ class _HalamanHackerState extends State<HalamanHacker> {
           duel.selesaiMenebak(
               menang: game.menang, percobaan: game.riwayat.length);
           final hasil = game.menang
-              ? 'Pemain $penebak membobol PIN ${game.pin} dalam '
-                  '${game.riwayat.length} percobaan.'
-              : 'Pemain $penebak gagal. PIN-nya ${game.pin}.';
+              ? context.tr('Pemain $penebak membobol PIN ${game.pin} dalam '
+                  '${game.riwayat.length} percobaan.', 'Player $penebak cracked PIN ${game.pin} in ${game.riwayat.length} tries.')
+              : context.tr('Pemain $penebak gagal. PIN-nya ${game.pin}.', 'Player $penebak failed. The PIN was ${game.pin}.');
           _infoDuel = duel.tahap == TahapDuel.selesai
-              ? '$hasil ${_teksHasilDuel(duel)} '
+              ? context.tr('$hasil ${_teksHasilDuel(duel)} '
                   '(P1: ${duel.teksSkor(duel.skor1)}, '
-                  'P2: ${duel.teksSkor(duel.skor2)})'
-              : '$hasil Sekarang Pemain 2 pasang PIN, Pemain 1 jangan lihat!';
+                  'P2: ${duel.teksSkor(duel.skor2)})', '$hasil ${_teksHasilDuel(duel)} (P1: ${duel.teksSkor(duel.skor1, inggris: true)}, P2: ${duel.teksSkor(duel.skor2, inggris: true)})')
+              : context.tr('$hasil Sekarang Pemain 2 pasang PIN, Pemain 1 jangan lihat!', '$hasil Now Player 2 sets a PIN, Player 1 do not look!');
         }
       });
       if (!game.selesai) _fokus.requestFocus();
@@ -260,14 +260,14 @@ class _HalamanHackerState extends State<HalamanHacker> {
                 onTap: () => _gantiModeDuel(false),
               ),
               PilihanKaca(
-                label: 'Duel 2 pemain',
+                label: context.tr('Duel 2 pemain', '2-player duel'),
                 dipilih: _modeDuel,
                 onTap: () => _gantiModeDuel(true),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Text('Tingkat keamanan', style: gayaLabel),
+          Text(context.tr('Tingkat keamanan', 'Security level'), style: gayaLabel),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -275,7 +275,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
             children: [
               for (final t in daftarTingkatHacker)
                 PilihanKaca(
-                  label: '${t.nama} (${t.panjang} digit)',
+                  label: context.tr('${t.nama} (${t.panjang} digit)', '${t.namaEn} (${t.panjang} digits)'),
                   dipilih: t == _tingkat,
                   onTap: () => _baru(t),
                 ),
@@ -288,13 +288,13 @@ class _HalamanHackerState extends State<HalamanHacker> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               TombolUtama(
-                label: _modeDuel ? 'Duel baru' : 'PIN baru',
+                label: _modeDuel ? context.tr('Duel baru', 'New duel') : context.tr('PIN baru', 'New PIN'),
                 ikon: Icons.refresh,
                 onPressed: _baru,
               ),
               Text(
-                'Dibobol $_menang dari $_main   '
-                'Rekor ${_tingkat.nama}: ${rekor == null ? '-' : '$rekor percobaan'}',
+                context.tr('Dibobol $_menang dari $_main   '
+                'Rekor ${_tingkat.nama}: ${rekor == null ? '-' : '$rekor percobaan'}', 'Cracked $_menang of $_main   Best ${_tingkat.namaEn}: ${rekor == null ? '-' : '$rekor tries'}'),
                 style: TextStyle(
                   color: context.palet.teks,
                   fontWeight: FontWeight.w600,
@@ -333,12 +333,12 @@ class _HalamanHackerState extends State<HalamanHacker> {
                       text: '> ${tebakan.split('').join(' ')}   ',
                     ),
                     TextSpan(
-                      text: '${hasil.tepat} tepat',
+                      text: context.tr('${hasil.tepat} tepat', '${hasil.tepat} correct'),
                       style: const TextStyle(color: _hijauTerminal),
                     ),
                     const TextSpan(text: '  '),
                     TextSpan(
-                      text: '${hasil.salahTempat} salah tempat',
+                      text: context.tr('${hasil.salahTempat} salah tempat', '${hasil.salahTempat} misplaced'),
                       style: const TextStyle(color: Color(0xFFFBBF24)),
                     ),
                   ],
@@ -356,9 +356,9 @@ class _HalamanHackerState extends State<HalamanHacker> {
             const SizedBox(height: 10),
             Text(
               game.menang
-                  ? 'AKSES DITERIMA. PIN ${game.pin} dibobol dalam '
-                      '${game.riwayat.length} percobaan.'
-                  : 'AKSES DIBLOKIR. PIN-nya ${game.pin}.',
+                  ? context.tr('AKSES DITERIMA. PIN ${game.pin} dibobol dalam '
+                      '${game.riwayat.length} percobaan.', 'ACCESS GRANTED. PIN ${game.pin} cracked in ${game.riwayat.length} tries.')
+                  : context.tr('AKSES DIBLOKIR. PIN-nya ${game.pin}.', 'ACCESS DENIED. The PIN was ${game.pin}.'),
               style: _mono.copyWith(
                 color: game.menang ? _hijauTerminal : const Color(0xFFF87171),
                 fontWeight: FontWeight.w700,
@@ -428,7 +428,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 22, vertical: 14),
                     child: Text(
-                      game.selesai ? 'Lagi' : 'Coba',
+                      game.selesai ? context.tr('Lagi', 'Again') : context.tr('Coba', 'Try'),
                       style: const TextStyle(
                         color: Color(0xFF0F172A),
                         fontWeight: FontWeight.w800,
@@ -488,7 +488,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
                     letterSpacing: 6,
                   ),
                   decoration: InputDecoration(
-                    hintText: 'PIN $p digit',
+                    hintText: context.tr('PIN $p digit', 'PIN, $p digits'),
                     hintStyle: _mono.copyWith(color: const Color(0x40FFFFFF)),
                     filled: true,
                     fillColor: const Color(0x14FFFFFF),
@@ -505,11 +505,11 @@ class _HalamanHackerState extends State<HalamanHacker> {
                 child: InkWell(
                   customBorder: const StadiumBorder(),
                   onTap: _kunciPin,
-                  child: const Padding(
+                  child: Padding(
                     padding:
                         EdgeInsets.symmetric(horizontal: 22, vertical: 14),
                     child: Text(
-                      'Kunci',
+                      context.tr('Kunci', 'Lock'),
                       style: TextStyle(
                         color: Color(0xFF0F172A),
                         fontWeight: FontWeight.w800,
@@ -539,7 +539,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Cara main',
+            context.tr('Cara main', 'How to play'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -548,16 +548,16 @@ class _HalamanHackerState extends State<HalamanHacker> {
           ),
           SizedBox(height: 8),
           Text(
-            'Tebak PIN rahasia. Digit boleh kembar. Tiap percobaan dibalas '
+            context.tr('Tebak PIN rahasia. Digit boleh kembar. Tiap percobaan dibalas '
             'dua angka: "tepat" = digit benar di posisi yang benar, '
             '"salah tempat" = digit ada di PIN tapi di posisi lain. '
-            'Pakai petunjuknya untuk menyempitkan kemungkinan.',
+            'Pakai petunjuknya untuk menyempitkan kemungkinan.', 'Guess the secret PIN. Digits can repeat. Each try gets two numbers back: "correct" = right digit in the right place, "misplaced" = the digit is in the PIN but somewhere else. Use the clues to narrow it down.'),
             style: gaya,
           ),
           SizedBox(height: 8),
           Text(
-            'Contoh: PIN 4721, tebakan 1724 -> 2 tepat (7 dan 2), '
-            '2 salah tempat (1 dan 4).',
+            context.tr('Contoh: PIN 4721, tebakan 1724 -> 2 tepat (7 dan 2), '
+            '2 salah tempat (1 dan 4).', 'Example: PIN 4721, guess 1724 -> 2 correct (7 and 2), 2 misplaced (1 and 4).'),
             style: gaya,
           ),
         ],

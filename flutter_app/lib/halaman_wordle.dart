@@ -114,8 +114,8 @@ class _HalamanWordleState extends State<HalamanWordle> {
     final game = _game;
     // Seperti Wordle asli: mode sulit cuma bisa diganti sebelum menebak.
     if (game != null && game.tebakan.isNotEmpty && !game.selesai) {
-      setState(() => _pesan = 'Mode sulit cuma bisa diganti sebelum '
-          'tebakan pertama.');
+      setState(() => _pesan = context.tr('Mode sulit cuma bisa diganti sebelum '
+          'tebakan pertama.', 'Hard mode can only be changed before the first guess.'));
       return;
     }
     setState(() {
@@ -128,8 +128,8 @@ class _HalamanWordleState extends State<HalamanWordle> {
         );
       }
       _pesan = _modeSulit
-          ? 'Mode sulit aktif: huruf yang sudah ketemu wajib dipakai lagi.'
-          : 'Mode sulit mati.';
+          ? context.tr('Mode sulit aktif: huruf yang sudah ketemu wajib dipakai lagi.', 'Hard mode on: letters you have found must be used again.')
+          : context.tr('Mode sulit mati.', 'Hard mode off.');
     });
     _simpanStatistik();
   }
@@ -148,11 +148,12 @@ class _HalamanWordleState extends State<HalamanWordle> {
       _bahasa,
       [for (final (_, nilai) in game.tebakan) nilai],
       game.menang,
+      inggris: context.inggris,
     );
     await Clipboard.setData(ClipboardData(text: teks));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Hasil disalin. Tempel di chat atau story.')),
+      SnackBar(content: Text(context.tr('Hasil disalin. Tempel di chat atau story.', 'Result copied. Paste it in a chat or story.'))),
     );
   }
 
@@ -231,7 +232,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
         setState(() {
           _memuat = false;
           _game = null;
-          _pesan = 'Daftar kata gagal dimuat.';
+          _pesan = context.tr('Daftar kata gagal dimuat.', 'Could not load the word list.');
         });
         return;
       }
@@ -292,12 +293,12 @@ class _HalamanWordleState extends State<HalamanWordle> {
     final nomor = nomorHarian(sekarang);
     if (game.selesai) {
       _pesan = game.menang
-          ? 'Harian #$nomor beres dalam ${game.tebakan.length} tebakan. '
-              'Kata berikutnya besok.'
-          : 'Harian #$nomor: jawabannya ${game.jawaban.toUpperCase()}. '
-              'Kata berikutnya besok.';
+          ? context.tr('Harian #$nomor beres dalam ${game.tebakan.length} tebakan. '
+              'Kata berikutnya besok.', 'Daily #$nomor solved in ${game.tebakan.length} guesses. Next word tomorrow.')
+          : context.tr('Harian #$nomor: jawabannya ${game.jawaban.toUpperCase()}. '
+              'Kata berikutnya besok.', 'Daily #$nomor: the answer was ${game.jawaban.toUpperCase()}. Next word tomorrow.');
     } else {
-      _pesan = 'Wordle Harian #$nomor: semua pemain dapat kata yang sama.';
+      _pesan = context.tr('Wordle Harian #$nomor: semua pemain dapat kata yang sama.', 'Daily Wordle #$nomor: every player gets the same word.');
     }
     return game;
   }
@@ -334,7 +335,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
     }
     setState(() {
       if (error != null) {
-        _pesan = error;
+        _pesan = context.dua(error);
         _getar++;
         return;
       }
@@ -348,10 +349,10 @@ class _HalamanWordleState extends State<HalamanWordle> {
         if (game.menang) {
           _menang++;
           _beruntun++;
-          _pesan = 'Mantap! Ketebak dalam ${game.tebakan.length} tebakan.';
+          _pesan = context.tr('Mantap! Ketebak dalam ${game.tebakan.length} tebakan.', 'Nice! Solved in ${game.tebakan.length} guesses.');
         } else {
           _beruntun = 0;
-          _pesan = 'Jawabannya ${game.jawaban.toUpperCase()}.';
+          _pesan = context.tr('Jawabannya ${game.jawaban.toUpperCase()}.', 'The answer was ${game.jawaban.toUpperCase()}.');
         }
       }
     });
@@ -445,24 +446,24 @@ class _HalamanWordleState extends State<HalamanWordle> {
             runSpacing: 8,
             children: [
               PilihanKaca(
-                label: 'Main bebas',
+                label: context.tr('Main bebas', 'Free play'),
                 dipilih: !_harian,
                 onTap: () => _gantiJenis(false),
               ),
               PilihanKaca(
-                label: 'Harian #${nomorHarian(widget.jam())}',
+                label: context.tr('Harian #${nomorHarian(widget.jam())}', 'Daily #${nomorHarian(widget.jam())}'),
                 dipilih: _harian,
                 onTap: () => _gantiJenis(true),
               ),
               PilihanKaca(
-                label: 'Mode sulit',
+                label: context.tr('Mode sulit', 'Hard mode'),
                 dipilih: _modeSulit,
                 onTap: _gantiModeSulit,
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Text('Bahasa', style: gayaLabel),
+          Text(context.tr('Bahasa', 'Language'), style: gayaLabel),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -478,7 +479,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
           ),
           if (!_harian) ...[
             const SizedBox(height: 12),
-            Text('Jumlah huruf', style: gayaLabel),
+            Text(context.tr('Jumlah huruf', 'Word length'), style: gayaLabel),
             const SizedBox(height: 6),
             Wrap(
               spacing: 8,
@@ -486,7 +487,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
               children: [
                 for (final p in panjangTersedia)
                   PilihanKaca(
-                    label: '$p huruf',
+                    label: context.tr('$p huruf', '$p letters'),
                     dipilih: p == _panjang,
                     onTap: () => _gantiPanjang(p),
                   ),
@@ -501,18 +502,18 @@ class _HalamanWordleState extends State<HalamanWordle> {
             children: [
               if (!_harian)
                 TombolUtama(
-                  label: 'Kata baru',
+                  label: context.tr('Kata baru', 'New word'),
                   ikon: Icons.refresh,
                   onPressed: _memuat ? null : _kataBaru,
                 )
               else if (_game?.selesai ?? false)
                 TombolUtama(
-                  label: 'Salin hasil',
+                  label: context.tr('Salin hasil', 'Copy result'),
                   ikon: Icons.share_outlined,
                   onPressed: _salinHasilHarian,
                 ),
               Text(
-                'Main $_main   Menang $_menang   Beruntun $_beruntun',
+                context.tr('Main $_main   Menang $_menang   Beruntun $_beruntun', 'Played $_main   Won $_menang   Streak $_beruntun'),
                 style: TextStyle(
                   color: context.palet.teks,
                   fontWeight: FontWeight.w600,

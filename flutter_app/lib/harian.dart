@@ -72,18 +72,21 @@ String _kotakSuhu(Suhu suhu) => switch (suhu) {
 /// Teks hasil angka harian untuk dibagikan. [hasil] urut dari tebakan
 /// pertama. Angka tebakan sengaja nggak ditulis supaya nggak membocorkan
 /// jawaban.
-String teksBagikanAngka(int nomor, List<HasilTebakan> hasil, bool menang) {
+String teksBagikanAngka(int nomor, List<HasilTebakan> hasil, bool menang,
+    {bool inggris = false}) {
   final skor = menang ? '${hasil.length}/${levelHarian.nyawa}' : 'X/${levelHarian.nyawa}';
   final kotak = [
     for (final h in hasil) h.benar ? '✅' : _kotakSuhu(h.suhu!),
   ].join();
-  return 'Tebak Angka Harian #$nomor $skor\n$kotak\n'
+  final judul = inggris ? 'Daily Number Guess' : 'Tebak Angka Harian';
+  return '$judul #$nomor $skor\n$kotak\n'
       'https://zuyss.github.io/tebak-angka/';
 }
 
 /// Teks hasil Wordle harian, dengan kotak warna ala Wordle asli.
 String teksBagikanWordle(
-    int nomor, Bahasa bahasa, List<List<StatusHuruf>> nilai, bool menang) {
+    int nomor, Bahasa bahasa, List<List<StatusHuruf>> nilai, bool menang,
+    {bool inggris = false}) {
   final skor = menang ? '${nilai.length}/$maksTebakan' : 'X/$maksTebakan';
   final baris = [
     for (final n in nilai)
@@ -95,7 +98,8 @@ String teksBagikanWordle(
               })
           .join(),
   ];
-  return 'Wordle Harian #$nomor (${bahasa.kode.toUpperCase()}) $skor\n'
+  final judul = inggris ? 'Daily Wordle' : 'Wordle Harian';
+  return '$judul #$nomor (${bahasa.kode.toUpperCase()}) $skor\n'
       '${baris.join('\n')}\n'
       'https://zuyss.github.io/tebak-angka/';
 }
