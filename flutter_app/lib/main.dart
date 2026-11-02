@@ -26,6 +26,7 @@ class TebakAngkaApp extends StatefulWidget {
     this.pemuatKamus = muatKamusDariAset,
     this.latarBergerak = true,
     this.simpanan,
+    this.jam = DateTime.now,
   });
 
   /// Bisa diganti di test supaya nggak perlu baca file aset.
@@ -33,6 +34,9 @@ class TebakAngkaApp extends StatefulWidget {
 
   /// Tempat menyimpan statistik. Null = nggak disimpan.
   final Simpanan? simpanan;
+
+  /// Sumber waktu untuk tantangan harian. Bisa diganti di test.
+  final DateTime Function() jam;
 
   /// Dimatikan di test (animasi tanpa akhir bikin pumpAndSettle macet).
   final bool latarBergerak;
@@ -62,6 +66,7 @@ class _TebakAngkaAppState extends State<TebakAngkaApp> {
           pemuatKamus: widget.pemuatKamus,
           latarBergerak: widget.latarBergerak,
           simpanan: widget.simpanan,
+          jam: widget.jam,
         ),
       ),
     );
@@ -74,11 +79,13 @@ class Beranda extends StatefulWidget {
     required this.pemuatKamus,
     required this.latarBergerak,
     this.simpanan,
+    this.jam = DateTime.now,
   });
 
   final PemuatKamus pemuatKamus;
   final bool latarBergerak;
   final Simpanan? simpanan;
+  final DateTime Function() jam;
 
   @override
   State<Beranda> createState() => _BerandaState();
@@ -89,10 +96,10 @@ class _BerandaState extends State<Beranda> {
   bool _wordlePernahDibuka = false;
 
   String _sapaan() {
-    final jam = DateTime.now().hour;
-    if (jam < 11) return 'Selamat pagi';
-    if (jam < 15) return 'Selamat siang';
-    if (jam < 18) return 'Selamat sore';
+    final jamSekarang = widget.jam().hour;
+    if (jamSekarang < 11) return 'Selamat pagi';
+    if (jamSekarang < 15) return 'Selamat siang';
+    if (jamSekarang < 18) return 'Selamat sore';
     return 'Selamat malam';
   }
 
@@ -125,7 +132,7 @@ class _BerandaState extends State<Beranda> {
                 child: IndexedStack(
                   index: _halaman,
                   children: [
-                    HalamanAngka(simpanan: widget.simpanan),
+                    HalamanAngka(simpanan: widget.simpanan, jam: widget.jam),
                     // Wordle baru dibangun saat pertama dibuka, biar daftar
                     // katanya nggak dimuat kalau nggak dimainkan.
                     if (_wordlePernahDibuka)
@@ -133,6 +140,7 @@ class _BerandaState extends State<Beranda> {
                         pemuatKamus: widget.pemuatKamus,
                         aktif: _halaman == 1,
                         simpanan: widget.simpanan,
+                        jam: widget.jam,
                       )
                     else
                       const SizedBox.shrink(),

@@ -78,6 +78,10 @@ Folder `flutter_app/` berisi versi app dengan tampilan light glassmorphism dan d
     kelipatan, prima, jumlah digit, rentang), dari yang samar ke yang spesifik.
 - **Wordle** bahasa Indonesia dan Inggris, 4 sampai 7 huruf, 6 kesempatan.
   Bisa diketik pakai keyboard di layar atau keyboard fisik.
+- **Tantangan harian**: satu angka dan satu kata Wordle (per bahasa) yang sama untuk
+  semua pemain tiap hari, cuma bisa dimainkan sekali, dan hasilnya bisa disalin untuk
+  dibagikan. Tanpa server: angka dan katanya diturunkan dari tanggal lewat fungsi hash
+  di `flutter_app/lib/harian.dart`, yang hasilnya sama di web, Android, dan Windows.
 
 Statistik (menang/kalah, rekor per mode dan level, riwayat, streak Wordle) tersimpan
 di perangkat dan tetap ada setelah app ditutup. Di versi web, statistik tersimpan di
@@ -117,7 +121,7 @@ flutter build windows --release  # hasil: build/windows/x64/runner/Release/
 - [x] Simpan high score ke file
 - [x] Mode kebalikan: komputer yang menebak
 - [x] App: statistik, rekor per mode dan level, dan pilihan terakhir tersimpan
-- [ ] App: tantangan harian (angka dan kata yang sama untuk semua orang, bisa dibagikan)
+- [x] App: tantangan harian (angka dan kata yang sama untuk semua orang, bisa dibagikan)
 - [ ] App: mode komputer yang menebak, seperti versi Python
 - [ ] App: Mode Hacker, menebak PIN 4 digit dengan petunjuk ala Mastermind
 

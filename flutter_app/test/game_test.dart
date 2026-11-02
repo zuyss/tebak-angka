@@ -2,10 +2,12 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tebak_angka/game.dart';
 import 'package:tebak_angka/halaman_angka.dart';
+import 'package:tebak_angka/harian.dart';
 import 'package:tebak_angka/main.dart';
 import 'package:tebak_angka/simpanan.dart';
 import 'package:tebak_angka/wordle.dart';
@@ -251,6 +253,62 @@ void main() {
     }
   });
 
+  group('tantangan harian', () {
+    // Angka-angka ini dihitung dengan implementasi rujukan di Python.
+    // Kalau berubah, berarti angka/kata harian ikut berubah untuk semua
+    // pemain, jadi test ini sengaja dibuat ketat.
+    test('hash stabil cocok dengan rujukan', () {
+      expect(hashStabil('abc'), 515672207);
+      expect(hashStabil(''), 3069989445);
+    });
+
+    test('angka harian cocok dengan rujukan dan tetap di rentang', () {
+      expect(angkaHarian(DateTime(2026, 11, 2)), 45);
+      expect(angkaHarian(DateTime(2026, 11, 3)), 60);
+      expect(angkaHarian(DateTime(2026, 12, 31)), 14);
+      // Jam berapa pun di hari yang sama, angkanya sama.
+      expect(angkaHarian(DateTime(2026, 11, 2, 23, 59)), 45);
+      for (var i = 0; i < 400; i++) {
+        final a = angkaHarian(DateTime(2026, 11, 1).add(Duration(days: i)));
+        expect(a, inInclusiveRange(levelHarian.bawah, levelHarian.atas));
+      }
+    });
+
+    test('kata harian cocok dengan rujukan', () {
+      final daftar = [for (var i = 0; i < 1500; i++) 'k$i'];
+      expect(kataHarian(DateTime(2026, 11, 2), Bahasa.id, daftar), 'k1302');
+      expect(kataHarian(DateTime(2026, 11, 2), Bahasa.en, daftar), 'k516');
+    });
+
+    test('nomor dan kunci tanggal', () {
+      expect(nomorHarian(DateTime(2026, 11, 1)), 1);
+      expect(nomorHarian(DateTime(2026, 11, 2, 23)), 2);
+      expect(nomorHarian(DateTime(2027, 1, 1)), 62);
+      expect(kunciTanggal(DateTime(2026, 3, 7)), '2026-03-07');
+    });
+
+    test('teks bagikan nggak membocorkan angka tebakan', () {
+      final game = TebakAngkaGame.denganRahasia(levelHarian, 45);
+      final hasil = [game.tebak(10), game.tebak(44), game.tebak(45)];
+      final teks = teksBagikanAngka(2, hasil, true);
+      expect(teks, startsWith('Tebak Angka Harian #2 3/10\n'));
+      expect(teks, isNot(contains('44')));
+      expect(teks, contains('\u2705'));
+    });
+
+    test('teks bagikan wordle', () {
+      final teks = teksBagikanWordle(
+        2,
+        Bahasa.id,
+        [nilaiTebakan('makan', 'rumah'), nilaiTebakan('rumah', 'rumah')],
+        true,
+      );
+      expect(teks, startsWith('Wordle Harian #2 (ID) 2/6\n'));
+      expect(teks, contains('\u{1F7E9}' * 5));
+      expect(teks, isNot(contains('rumah')));
+    });
+  });
+
   group('penyimpanan', () {
     test('JSON rusak atau bukan objek dianggap kosong', () {
       expect(uraiJson(null), isNull);
@@ -298,7 +356,7 @@ void main() {
   });
 
   Future<void> aturLayar(WidgetTester tester, Size ukuran,
-      {Simpanan? simpanan}) async {
+      {Simpanan? simpanan, DateTime Function() jam = DateTime.now}) async {
     tester.view.physicalSize = ukuran;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -307,23 +365,43 @@ void main() {
         pemuatKamus: kamusPalsu,
         latarBergerak: false,
         simpanan: simpanan,
+        jam: jam,
       ),
     );
   }
 
   /// Buang app lalu buka lagi dengan penyimpanan yang sama, seperti
   /// menutup dan membuka ulang app.
-  Future<void> bukaUlang(WidgetTester tester, Simpanan simpanan) async {
+  Future<void> bukaUlang(WidgetTester tester, Simpanan simpanan,
+      {DateTime Function() jam = DateTime.now}) async {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(
       TebakAngkaApp(
         pemuatKamus: kamusPalsu,
         latarBergerak: false,
         simpanan: simpanan,
+        jam: jam,
       ),
     );
     await tester.pumpAndSettle();
   }
+
+  /// Tangkap teks yang disalin ke clipboard.
+  String? Function() pantauClipboard(WidgetTester tester) {
+    String? disalin;
+    final pesan = tester.binding.defaultBinaryMessenger;
+    pesan.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        disalin = (call.arguments as Map)['text'] as String?;
+      }
+      return null;
+    });
+    addTearDown(
+        () => pesan.setMockMethodCallHandler(SystemChannels.platform, null));
+    return () => disalin;
+  }
+
+  DateTime tanggal2Nov() => DateTime(2026, 11, 2, 20, 0);
 
   Future<void> ketuk(WidgetTester tester, Finder target) async {
     await tester.ensureVisible(target);
@@ -424,6 +502,72 @@ void main() {
       expect(find.text('Pilih level'), findsOneWidget);
       await ketuk(tester, find.text('Wordle'));
       expect(find.text('Main 0   Menang 0   Beruntun 0'), findsOneWidget);
+    });
+
+    testWidgets('angka harian sekali sehari dan bisa dilanjutkan di layar $nama',
+        (tester) async {
+      final simpanan = SimpananMemori();
+      final ambilClipboard = pantauClipboard(tester);
+      await aturLayar(tester, ukuran, simpanan: simpanan, jam: tanggal2Nov);
+      await ketuk(tester, find.text('Tantangan harian'));
+      await ketuk(tester, find.text('Mulai'));
+      await tester.enterText(find.byType(TextField), '40');
+      await ketuk(tester, find.text('Tebak'));
+
+      // Tutup app di tengah jalan, buka lagi: progres lanjut, bukan ulang.
+      await bukaUlang(tester, simpanan, jam: tanggal2Nov);
+      await ketuk(tester, find.text('Tantangan harian'));
+      await ketuk(tester, find.text('Lanjutkan'));
+      expect(find.text('Sisa percobaan: 9 dari 10'), findsOneWidget);
+
+      // Angka harian 2 Nov 2026 adalah 45 (lihat test unit).
+      await tester.enterText(find.byType(TextField), '45');
+      await ketuk(tester, find.text('Tebak'));
+      expect(find.text('Kamu menang dalam 2 percobaan.'), findsOneWidget);
+      expect(find.text('Mulai'), findsNothing);
+
+      await ketuk(tester, find.text('Salin hasil'));
+      expect(ambilClipboard(), startsWith('Tebak Angka Harian #2 2/10'));
+
+      // Besoknya ada tantangan baru.
+      await bukaUlang(tester, simpanan,
+          jam: () => DateTime(2026, 11, 3, 8));
+      await ketuk(tester, find.text('Tantangan harian'));
+      expect(find.text('Mulai'), findsOneWidget);
+    });
+
+    testWidgets('wordle harian sekali sehari di layar $nama', (tester) async {
+      final simpanan = SimpananMemori();
+      final ambilClipboard = pantauClipboard(tester);
+      await aturLayar(tester, ukuran, simpanan: simpanan, jam: tanggal2Nov);
+      await ketuk(tester, find.text('Wordle'));
+      await ketuk(tester, find.text('Harian #2'));
+      expect(find.text('4 huruf'), findsNothing); // panjang dikunci 5
+
+      Future<void> ketik(String kata) async {
+        for (final h in kata.split('')) {
+          await ketuk(tester, find.byKey(ValueKey('tombol-$h')));
+        }
+        await ketuk(tester, find.byKey(const ValueKey('tombol-enter')));
+      }
+
+      await ketik('makan');
+      await bukaUlang(tester, simpanan, jam: tanggal2Nov);
+      await ketuk(tester, find.text('Wordle'));
+      await ketuk(tester, find.text('Harian #2'));
+      // Tebakan tadi diputar ulang.
+      expect(find.byKey(const ValueKey('sel-0-0')), findsOneWidget);
+
+      await ketik('rumah'); // kamus palsu: jawabannya selalu "rumah"
+      expect(find.textContaining('Mantap!'), findsOneWidget);
+      expect(find.text('Main 1   Menang 1   Beruntun 1'), findsOneWidget);
+
+      // Enter setelah selesai nggak memulai kata baru di mode harian.
+      await ketuk(tester, find.byKey(const ValueKey('tombol-enter')));
+      expect(find.byKey(const ValueKey('sel-1-0')), findsOneWidget);
+
+      await ketuk(tester, find.text('Salin hasil'));
+      expect(ambilClipboard(), startsWith('Wordle Harian #2 (ID) 2/6'));
     });
 
     testWidgets('wordle di layar $nama', (tester) async {

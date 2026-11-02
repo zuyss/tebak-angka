@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'game.dart';
+import 'harian.dart';
 import 'kaca.dart';
 import 'simpanan.dart';
 
@@ -84,10 +85,13 @@ IconData ikonArah(Arah arah) => switch (arah) {
     };
 
 class HalamanAngka extends StatefulWidget {
-  const HalamanAngka({super.key, this.simpanan});
+  const HalamanAngka({super.key, this.simpanan, this.jam = DateTime.now});
 
   /// Null = statistik nggak disimpan (hilang saat app ditutup).
   final Simpanan? simpanan;
+
+  /// Sumber waktu untuk tantangan harian. Bisa diganti di test.
+  final DateTime Function() jam;
 
   @override
   State<HalamanAngka> createState() => _HalamanAngkaState();
@@ -113,10 +117,94 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   static const _kunciSimpanan = 'tebak_angka.v1';
   static const _maksSimpan = 50;
 
+  // ---------- tantangan harian ----------
+
+  static const _kunciHarian = 'harian_angka.v1';
+
+  bool _harian = false; // pilihan di layar: main bebas atau harian
+  bool _gameHarian = false; // ronde yang sedang/terakhir jalan itu harian
+
+  // Progres harian: tanggal dan tebakan yang sudah dikirim. Disimpan tiap
+  // tebakan, jadi menutup app di tengah jalan nggak bisa dipakai buat
+  // mengulang dengan angka yang sama.
+  String? _harianTanggal;
+  final List<int> _harianTebakan = [];
+
   @override
   void initState() {
     super.initState();
     _muat();
+    _muatHarian();
+  }
+
+  void _muatHarian() {
+    final data = widget.simpanan?.baca(_kunciHarian);
+    if (data == null) return;
+    final tanggal = data['tanggal'];
+    final tebakan = data['tebakan'];
+    if (tanggal is! String || tebakan is! List) return;
+    _harianTanggal = tanggal;
+    _harianTebakan.addAll([
+      for (final t in tebakan)
+        if (t is int && t >= levelHarian.bawah && t <= levelHarian.atas) t,
+    ]);
+  }
+
+  void _simpanHarian() {
+    widget.simpanan?.tulis(_kunciHarian, {
+      'tanggal': _harianTanggal,
+      'tebakan': _harianTebakan,
+    });
+  }
+
+  /// Bangun ulang ronde harian hari ini dari tebakan yang tersimpan.
+  (TebakAngkaGame, List<HasilTebakan>) _putarUlangHarian() {
+    final sekarang = widget.jam();
+    final game = TebakAngkaGame.denganRahasia(
+        levelHarian, angkaHarian(sekarang));
+    final hasil = <HasilTebakan>[];
+    if (_harianTanggal == kunciTanggal(sekarang)) {
+      for (final angka in _harianTebakan) {
+        if (game.selesai) break;
+        hasil.add(game.tebak(angka));
+      }
+    }
+    return (game, hasil);
+  }
+
+  void _mulaiHarian() {
+    final sekarang = widget.jam();
+    if (_harianTanggal != kunciTanggal(sekarang)) {
+      _harianTanggal = kunciTanggal(sekarang);
+      _harianTebakan.clear();
+      _simpanHarian();
+    }
+    final (game, hasil) = _putarUlangHarian();
+    if (game.selesai) return;
+    setState(() {
+      _game = game;
+      _gameHarian = true;
+      _tebakan
+        ..clear()
+        ..addAll(hasil.reversed);
+      _pesan = hasil.isEmpty
+          ? 'Tantangan #${nomorHarian(sekarang)}: semua pemain dapat angka '
+              'yang sama hari ini.'
+          : 'Lanjut dari tebakan terakhirmu.';
+      _input.clear();
+    });
+    _fokus.requestFocus();
+  }
+
+  Future<void> _salinHasilHarian() async {
+    final (game, hasil) = _putarUlangHarian();
+    final teks =
+        teksBagikanAngka(nomorHarian(widget.jam()), hasil, game.menang);
+    await Clipboard.setData(ClipboardData(text: teks));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Hasil disalin. Tempel di chat atau story.')),
+    );
   }
 
   void _muat() {
@@ -205,6 +293,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
 
   void _mulai() {
     setState(() {
+      _gameHarian = false;
       _game = TebakAngkaGame(_level, mode: _mode);
       _pesan = 'Aku sudah pilih angka antara ${_level.bawah} dan ${_level.atas}.';
       _tebakan.clear();
@@ -229,6 +318,10 @@ class _HalamanAngkaState extends State<HalamanAngka> {
     }
 
     final hasil = game.tebak(parse.angka!);
+    if (_gameHarian) {
+      _harianTebakan.add(hasil.angka);
+      _simpanHarian();
+    }
 
     setState(() {
       _input.clear();
@@ -377,6 +470,79 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   }
 
   List<Widget> _areaPilih() => [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            PilihanKaca(
+              label: 'Main bebas',
+              dipilih: !_harian,
+              onTap: () => setState(() => _harian = false),
+            ),
+            PilihanKaca(
+              label: 'Tantangan harian',
+              dipilih: _harian,
+              onTap: () => setState(() => _harian = true),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (_harian) ..._areaHarian() else ..._areaPilihBebas(),
+      ];
+
+  List<Widget> _areaHarian() {
+    final sekarang = widget.jam();
+    final (game, hasil) = _putarUlangHarian();
+    final nomor = nomorHarian(sekarang);
+
+    if (game.selesai) {
+      return [
+        _label('Tantangan #$nomor'),
+        const SizedBox(height: 4),
+        Text(
+          game.menang
+              ? 'Kamu menang dalam ${hasil.length} percobaan.'
+              : 'Belum beruntung. Angkanya ${game.rahasia}.',
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: warnaTeks,
+          ),
+        ),
+        const SizedBox(height: 6),
+        _label('Tantangan berikutnya besok.'),
+        const SizedBox(height: 18),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TombolUtama(
+            label: 'Salin hasil',
+            ikon: Icons.share_outlined,
+            onPressed: _salinHasilHarian,
+          ),
+        ),
+      ];
+    }
+
+    return [
+      _label('Tantangan #$nomor - Panas-Dingin, angka '
+          '${levelHarian.bawah}-${levelHarian.atas}, '
+          '${levelHarian.nyawa} percobaan'),
+      const SizedBox(height: 6),
+      _label('Semua pemain dapat angka yang sama hari ini, '
+          'dan cuma bisa dimainkan sekali.'),
+      const SizedBox(height: 18),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TombolUtama(
+          label: hasil.isEmpty ? 'Mulai' : 'Lanjutkan',
+          ikon: Icons.play_arrow_rounded,
+          onPressed: _mulaiHarian,
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _areaPilihBebas() => [
         _label('Mode'),
         const SizedBox(height: 6),
         Wrap(
@@ -864,12 +1030,6 @@ class KartuSegeraHadir extends StatelessWidget {
   const KartuSegeraHadir({super.key});
 
   static const _daftar = [
-    (
-      Icons.calendar_today_outlined,
-      'Tantangan harian',
-      'Satu angka dan satu kata yang sama untuk semua orang tiap hari, '
-          'plus tombol bagikan hasil.',
-    ),
     (
       Icons.smart_toy_outlined,
       'Komputer yang menebak',

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'harian.dart';
 import 'kaca.dart';
 import 'simpanan.dart';
 import 'wordle.dart';
@@ -33,7 +34,11 @@ class HalamanWordle extends StatefulWidget {
     required this.pemuatKamus,
     required this.aktif,
     this.simpanan,
+    this.jam = DateTime.now,
   });
+
+  /// Sumber waktu untuk Wordle harian. Bisa diganti di test.
+  final DateTime Function() jam;
 
   final PemuatKamus pemuatKamus;
 
@@ -66,10 +71,69 @@ class _HalamanWordleState extends State<HalamanWordle> {
 
   static const _kunciSimpanan = 'wordle.v1';
 
+  // ---------- Wordle harian ----------
+
+  static const _kunciHarian = 'wordle_harian.v1';
+
+  bool _harian = false;
+
+  // Tebakan harian yang sudah diterima, per kode bahasa, untuk tanggal
+  // [_harianTanggal]. Disimpan tiap tebakan supaya nggak bisa diulang.
+  String? _harianTanggal;
+  final Map<String, List<String>> _harianTebakan = {};
+
+  int get _panjangAktif => _harian ? panjangHarian : _panjang;
+
+  void _muatHarian() {
+    final data = widget.simpanan?.baca(_kunciHarian);
+    final tanggal = data?['tanggal'];
+    if (data == null || tanggal is! String) return;
+    _harianTanggal = tanggal;
+    for (final b in Bahasa.values) {
+      final daftar = data[b.kode];
+      if (daftar is List) {
+        _harianTebakan[b.kode] = [
+          for (final k in daftar)
+            if (k is String) k,
+        ];
+      }
+    }
+  }
+
+  void _simpanHarian() {
+    widget.simpanan?.tulis(_kunciHarian, {
+      'tanggal': _harianTanggal,
+      ..._harianTebakan,
+    });
+  }
+
+  void _gantiJenis(bool harian) {
+    if (harian == _harian) return;
+    _harian = harian;
+    _kataBaru();
+  }
+
+  Future<void> _salinHasilHarian() async {
+    final game = _game;
+    if (game == null) return;
+    final teks = teksBagikanWordle(
+      nomorHarian(widget.jam()),
+      _bahasa,
+      [for (final (_, nilai) in game.tebakan) nilai],
+      game.menang,
+    );
+    await Clipboard.setData(ClipboardData(text: teks));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Hasil disalin. Tempel di chat atau story.')),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     _muatStatistik();
+    _muatHarian();
     // setState belum boleh dipanggil di initState, jadi status awal
     // diisi langsung lalu daftar kata dimuat.
     _memuat = true;
@@ -124,14 +188,15 @@ class _HalamanWordleState extends State<HalamanWordle> {
   }
 
   Future<void> _muatLaluMulai() async {
-    final kunci = (_bahasa, _panjang);
+    final kunci = (_bahasa, _panjangAktif);
+    final harian = _harian;
     final KamusWordle kamus;
     final tersimpan = _cache[kunci];
     if (tersimpan != null) {
       kamus = tersimpan;
     } else {
       try {
-        kamus = await widget.pemuatKamus(_bahasa, _panjang);
+        kamus = await widget.pemuatKamus(kunci.$1, kunci.$2);
       } catch (_) {
         if (!mounted) return;
         setState(() {
@@ -144,14 +209,20 @@ class _HalamanWordleState extends State<HalamanWordle> {
       _cache[kunci] = kamus;
     }
 
-    // Selama memuat, bahasa atau panjang mungkin sudah diganti lagi.
-    if (!mounted || kunci != (_bahasa, _panjang)) return;
+    // Selama memuat, pilihan mungkin sudah diganti lagi.
+    if (!mounted || kunci != (_bahasa, _panjangAktif) || harian != _harian) {
+      return;
+    }
     setState(() {
-      var jawaban = kamus.acakJawaban(_random);
-      if (jawaban == _game?.jawaban && kamus.jawaban.length > 1) {
-        jawaban = kamus.acakJawaban(_random);
+      if (harian) {
+        _game = _mulaiHarian(kamus);
+      } else {
+        var jawaban = kamus.acakJawaban(_random);
+        if (jawaban == _game?.jawaban && kamus.jawaban.length > 1) {
+          jawaban = kamus.acakJawaban(_random);
+        }
+        _game = WordleGame(jawaban: jawaban, kamus: kamus);
       }
-      _game = WordleGame(jawaban: jawaban, kamus: kamus);
       _memuat = false;
     });
     if (widget.aktif) _fokus.requestFocus();
@@ -171,6 +242,35 @@ class _HalamanWordleState extends State<HalamanWordle> {
     _kataBaru();
   }
 
+  /// Bikin game harian hari ini dan putar ulang tebakan yang tersimpan.
+  WordleGame _mulaiHarian(KamusWordle kamus) {
+    final sekarang = widget.jam();
+    final tanggal = kunciTanggal(sekarang);
+    if (_harianTanggal != tanggal) {
+      _harianTanggal = tanggal;
+      _harianTebakan.clear();
+    }
+    final game = WordleGame(
+      jawaban: kataHarian(sekarang, _bahasa, kamus.jawaban),
+      kamus: kamus,
+    );
+    for (final kata in _harianTebakan[_bahasa.kode] ?? const <String>[]) {
+      if (game.selesai) break;
+      game.tebak(kata);
+    }
+    final nomor = nomorHarian(sekarang);
+    if (game.selesai) {
+      _pesan = game.menang
+          ? 'Harian #$nomor beres dalam ${game.tebakan.length} tebakan. '
+              'Kata berikutnya besok.'
+          : 'Harian #$nomor: jawabannya ${game.jawaban.toUpperCase()}. '
+              'Kata berikutnya besok.';
+    } else {
+      _pesan = 'Wordle Harian #$nomor: semua pemain dapat kata yang sama.';
+    }
+    return game;
+  }
+
   void _ketik(String huruf) {
     final game = _game;
     if (_memuat || game == null || game.selesai) return;
@@ -187,12 +287,17 @@ class _HalamanWordleState extends State<HalamanWordle> {
     final game = _game;
     if (_memuat || game == null) return;
     if (game.selesai) {
-      // Permainan sudah selesai: Enter langsung mulai kata baru.
-      _kataBaru();
+      // Permainan sudah selesai: Enter langsung mulai kata baru
+      // (kecuali harian, yang cuma sekali sehari).
+      if (!_harian) _kataBaru();
       return;
     }
 
     final error = game.tebak(_ketikan);
+    if (error == null && _harian) {
+      (_harianTebakan[_bahasa.kode] ??= []).add(game.tebakan.last.$1);
+      _simpanHarian();
+    }
     setState(() {
       if (error != null) {
         _pesan = error;
@@ -288,6 +393,23 @@ class _HalamanWordleState extends State<HalamanWordle> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              PilihanKaca(
+                label: 'Main bebas',
+                dipilih: !_harian,
+                onTap: () => _gantiJenis(false),
+              ),
+              PilihanKaca(
+                label: 'Harian #${nomorHarian(widget.jam())}',
+                dipilih: _harian,
+                onTap: () => _gantiJenis(true),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           const Text('Bahasa', style: gayaLabel),
           const SizedBox(height: 6),
           Wrap(
@@ -302,32 +424,41 @@ class _HalamanWordleState extends State<HalamanWordle> {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
-          const Text('Jumlah huruf', style: gayaLabel),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final p in panjangTersedia)
-                PilihanKaca(
-                  label: '$p huruf',
-                  dipilih: p == _panjang,
-                  onTap: () => _gantiPanjang(p),
-                ),
-            ],
-          ),
+          if (!_harian) ...[
+            const SizedBox(height: 12),
+            const Text('Jumlah huruf', style: gayaLabel),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final p in panjangTersedia)
+                  PilihanKaca(
+                    label: '$p huruf',
+                    dipilih: p == _panjang,
+                    onTap: () => _gantiPanjang(p),
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: 14),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              TombolUtama(
-                label: 'Kata baru',
-                ikon: Icons.refresh,
-                onPressed: _memuat ? null : _kataBaru,
-              ),
+              if (!_harian)
+                TombolUtama(
+                  label: 'Kata baru',
+                  ikon: Icons.refresh,
+                  onPressed: _memuat ? null : _kataBaru,
+                )
+              else if (_game?.selesai ?? false)
+                TombolUtama(
+                  label: 'Salin hasil',
+                  ikon: Icons.share_outlined,
+                  onPressed: _salinHasilHarian,
+                ),
               Text(
                 'Main $_main   Menang $_menang   Beruntun $_beruntun',
                 style: const TextStyle(
