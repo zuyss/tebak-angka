@@ -243,7 +243,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
   }
 
   Widget _kartuPengaturan() {
-    const gayaLabel = TextStyle(color: warnaTeksRedup, fontSize: 13);
+    final gayaLabel = TextStyle(color: context.palet.teksRedup, fontSize: 13);
     final rekor = _rekor[_tingkat.nama];
     return KartuKaca(
       padding: const EdgeInsets.all(16),
@@ -267,7 +267,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
             ],
           ),
           const SizedBox(height: 12),
-          const Text('Tingkat keamanan', style: gayaLabel),
+          Text('Tingkat keamanan', style: gayaLabel),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -295,8 +295,8 @@ class _HalamanHackerState extends State<HalamanHacker> {
               Text(
                 'Dibobol $_menang dari $_main   '
                 'Rekor ${_tingkat.nama}: ${rekor == null ? '-' : '$rekor percobaan'}',
-                style: const TextStyle(
-                  color: warnaTeks,
+                style: TextStyle(
+                  color: context.palet.teks,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -430,7 +430,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
                     child: Text(
                       game.selesai ? 'Lagi' : 'Coba',
                       style: const TextStyle(
-                        color: warnaHitam,
+                        color: Color(0xFF0F172A),
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -511,7 +511,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
                     child: Text(
                       'Kunci',
                       style: TextStyle(
-                        color: warnaHitam,
+                        color: Color(0xFF0F172A),
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -533,8 +533,8 @@ class _HalamanHackerState extends State<HalamanHacker> {
   }
 
   Widget _kartuAturan() {
-    const gaya = TextStyle(color: warnaTeksRedup, fontSize: 13, height: 1.4);
-    return const KartuKaca(
+    final gaya = TextStyle(color: context.palet.teksRedup, fontSize: 13, height: 1.4);
+    return KartuKaca(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -543,7 +543,7 @@ class _HalamanHackerState extends State<HalamanHacker> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: warnaTeks,
+              color: context.palet.teks,
             ),
           ),
           SizedBox(height: 8),

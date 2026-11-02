@@ -13,16 +13,136 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/foundation.dart' show ValueListenable, immutable;
 import 'package:flutter/material.dart';
 
-const warnaTeks = Color(0xFF0F172A);
-const warnaTeksRedup = Color(0x990F172A);
-const warnaHitam = Color(0xFF0F172A);
-const warnaGaris = Color(0x1F0F172A);
+/// Warna yang maknanya sama di tema terang dan gelap.
 const warnaHijau = Color(0xFF16A34A);
 const warnaKuning = Color(0xFFD97706);
 const warnaAbu = Color(0xFF94A3B8);
+
+/// Semua warna yang berubah antara tema terang dan gelap. Dipasang sebagai
+/// ThemeExtension, jadi MaterialApp otomatis memakai palet yang cocok
+/// (termasuk saat tema sistem berubah). Ambil lewat `context.palet`.
+@immutable
+class Palet extends ThemeExtension<Palet> {
+  const Palet({
+    required this.teks,
+    required this.teksRedup,
+    required this.aksen,
+    required this.diAtasAksen,
+    required this.garisHalus,
+    required this.jalur,
+    required this.isi,
+    required this.isiPilihan,
+    required this.tepi,
+    required this.permukaan,
+    required this.dialog,
+    required this.kotakKosong,
+    required this.kotakTerisi,
+    required this.latarDasar,
+    required this.latarBayangan,
+    required this.kaca,
+    required this.tepiKaca,
+    required this.kacaGelap,
+    required this.tepiKacaGelap,
+  });
+
+  /// Teks utama dan teks sekunder.
+  final Color teks, teksRedup;
+
+  /// Warna aksen (tombol utama, pilihan aktif) dan warna isi di atasnya.
+  final Color aksen, diAtasAksen;
+
+  /// Garis tipis, dan jalur bar (progress, rentang).
+  final Color garisHalus, jalur;
+
+  /// Isi kolom input/tombol keyboard, dan isi pilihan yang belum dipilih.
+  final Color isi, isiPilihan;
+
+  /// Garis tepi kolom dan tombol.
+  final Color tepi;
+
+  /// Permukaan solid (penanda di bar, menu yang aktif) dan latar dialog.
+  final Color permukaan, dialog;
+
+  /// Kotak huruf Wordle yang kosong dan yang sudah diketik.
+  final Color kotakKosong, kotakTerisi;
+
+  /// Gradasi dasar latar (3 warna) dan warna bayangan yang melayang (4).
+  final List<Color> latarDasar, latarBayangan;
+
+  /// Gradasi kartu kaca biasa (2 warna) dan garis tepinya (3 warna).
+  final List<Color> kaca, tepiKaca;
+
+  /// Gradasi kartu kaca gelap (terminal, kartu yang ditonjolkan) dan tepinya.
+  final List<Color> kacaGelap, tepiKacaGelap;
+
+  static const terang = Palet(
+    teks: Color(0xFF0F172A),
+    teksRedup: Color(0x990F172A),
+    aksen: Color(0xFF0F172A),
+    diAtasAksen: Color(0xFFFFFFFF),
+    garisHalus: Color(0x1A0F172A),
+    jalur: Color(0x260F172A),
+    isi: Color(0x99FFFFFF),
+    isiPilihan: Color(0x8CFFFFFF),
+    tepi: Color(0xE6FFFFFF),
+    permukaan: Color(0xFFFFFFFF),
+    dialog: Color(0xFFF8FAFC),
+    kotakKosong: Color(0x59FFFFFF),
+    kotakTerisi: Color(0xB3FFFFFF),
+    latarDasar: [Color(0xFFE6EBF1), Color(0xFFF5F6F8), Color(0xFFE2E6EB)],
+    latarBayangan: [
+      Color(0xFFB3C1D1),
+      Color(0xFFD9CEC1),
+      Color(0xFFBCC8D6),
+      Color(0xFFE0D6CB),
+    ],
+    kaca: [Color(0xA6FFFFFF), Color(0x66FFFFFF)],
+    tepiKaca: [Color(0xFFFFFFFF), Color(0x40FFFFFF), Color(0x290F172A)],
+    kacaGelap: [Color(0xF00F172A), Color(0xE61E293B)],
+    tepiKacaGelap: [Color(0x59FFFFFF), Color(0x0DFFFFFF), Color(0x26FFFFFF)],
+  );
+
+  static const gelap = Palet(
+    teks: Color(0xFFE2E8F0),
+    teksRedup: Color(0x99E2E8F0),
+    aksen: Color(0xFFF1F5F9),
+    diAtasAksen: Color(0xFF0F172A),
+    garisHalus: Color(0x1FFFFFFF),
+    jalur: Color(0x33FFFFFF),
+    isi: Color(0x14FFFFFF),
+    isiPilihan: Color(0x14FFFFFF),
+    tepi: Color(0x33FFFFFF),
+    permukaan: Color(0xFF1E293B),
+    dialog: Color(0xFF111827),
+    kotakKosong: Color(0x0DFFFFFF),
+    kotakTerisi: Color(0x26FFFFFF),
+    latarDasar: [Color(0xFF0B1120), Color(0xFF111827), Color(0xFF0A0F1C)],
+    latarBayangan: [
+      Color(0xFF1E3A5F),
+      Color(0xFF3B2F2A),
+      Color(0xFF1E293B),
+      Color(0xFF2A2433),
+    ],
+    kaca: [Color(0x1FFFFFFF), Color(0x0AFFFFFF)],
+    tepiKaca: [Color(0x4DFFFFFF), Color(0x0DFFFFFF), Color(0x40000000)],
+    kacaGelap: [Color(0xF5020617), Color(0xEB0F172A)],
+    tepiKacaGelap: [Color(0x40FFFFFF), Color(0x0DFFFFFF), Color(0x26FFFFFF)],
+  );
+
+  @override
+  Palet copyWith() => this;
+
+  /// Tema berganti tanpa animasi warna: cukup lompat di tengah jalan.
+  @override
+  Palet lerp(Palet? other, double t) => other == null || t < 0.5 ? this : other;
+}
+
+extension PaletDariContext on BuildContext {
+  Palet get palet => Theme.of(this).extension<Palet>() ?? Palet.terang;
+}
 
 /// Latar netral dengan bayangan-bayangan lembut yang melayang pelan.
 /// Bayangan ini yang bikin tepi kaca kelihatan; di atas latar putih polos,
@@ -111,7 +231,7 @@ class _LatarBeningState extends State<LatarBening>
       children: [
         Positioned.fill(
           child: RepaintBoundary(
-            child: CustomPaint(painter: _PelukisLatar(_waktu)),
+            child: CustomPaint(painter: _PelukisLatar(_waktu, context.palet)),
           ),
         ),
         Positioned.fill(child: widget.child),
@@ -123,11 +243,10 @@ class _LatarBeningState extends State<LatarBening>
 /// Satu bayangan: posisi dasar, seberapa jauh dia melayang, warna, ukuran,
 /// dan fase (biar nggak bergerak serempak).
 class _Bayangan {
-  const _Bayangan(this.x, this.y, this.ayunX, this.ayunY, this.warna,
-      this.ukuran, this.fase);
+  const _Bayangan(
+      this.x, this.y, this.ayunX, this.ayunY, this.ukuran, this.fase);
 
   final double x, y, ayunX, ayunY;
-  final Color warna;
   final double ukuran;
   final double fase;
 }
@@ -135,17 +254,17 @@ class _Bayangan {
 class _PelukisLatar extends CustomPainter {
   // repaint: waktu -> cuma painter ini yang digambar ulang tiap frame,
   // tanpa membangun ulang widget apa pun.
-  _PelukisLatar(this.waktu) : super(repaint: waktu);
+  _PelukisLatar(this.waktu, this.palet) : super(repaint: waktu);
 
   final ValueListenable<double> waktu;
+  final Palet palet;
 
-  static const _dasar = [Color(0xFFE6EBF1), Color(0xFFF5F6F8), Color(0xFFE2E6EB)];
-
+  /// Warna tiap bayangan diambil dari palet.latarBayangan, urut.
   static const _bayangan = [
-    _Bayangan(0.05, 0.05, 0.10, 0.08, Color(0xFFB3C1D1), 0.85, 0.0),
-    _Bayangan(0.95, 0.30, 0.08, 0.12, Color(0xFFD9CEC1), 0.70, 1.7),
-    _Bayangan(0.60, 1.00, 0.14, 0.06, Color(0xFFBCC8D6), 0.95, 3.4),
-    _Bayangan(0.00, 0.85, 0.07, 0.10, Color(0xFFE0D6CB), 0.60, 4.6),
+    _Bayangan(0.05, 0.05, 0.10, 0.08, 0.85, 0.0),
+    _Bayangan(0.95, 0.30, 0.08, 0.12, 0.70, 1.7),
+    _Bayangan(0.60, 1.00, 0.14, 0.06, 0.95, 3.4),
+    _Bayangan(0.00, 0.85, 0.07, 0.10, 0.60, 4.6),
   ];
 
   @override
@@ -154,16 +273,18 @@ class _PelukisLatar extends CustomPainter {
     canvas.drawRect(
       layar,
       Paint()
-        ..shader = const LinearGradient(
+        ..shader = LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: _dasar,
+          colors: palet.latarDasar,
         ).createShader(layar),
     );
 
     final t = waktu.value * 2 * pi;
     final sisiPanjang = max(size.width, size.height);
-    for (final b in _bayangan) {
+    for (var i = 0; i < _bayangan.length; i++) {
+      final b = _bayangan[i];
+      final warna = palet.latarBayangan[i % palet.latarBayangan.length];
       final pusat = Offset(
         size.width * (b.x + b.ayunX * sin(t + b.fase)),
         size.height * (b.y + b.ayunY * cos(t + b.fase)),
@@ -174,14 +295,15 @@ class _PelukisLatar extends CustomPainter {
         jari,
         Paint()
           ..shader = RadialGradient(
-            colors: [b.warna, b.warna.withAlpha(0)],
+            colors: [warna, warna.withAlpha(0)],
           ).createShader(Rect.fromCircle(center: pusat, radius: jari)),
       );
     }
   }
 
   @override
-  bool shouldRepaint(_PelukisLatar lama) => lama.waktu != waktu;
+  bool shouldRepaint(_PelukisLatar lama) =>
+      lama.waktu != waktu || lama.palet != palet;
 }
 
 /// Kartu kaca putih bening. Dengan [gelap], kartu jadi kaca hitam
@@ -203,11 +325,13 @@ class KartuKaca extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sudut = BorderRadius.circular(radius);
+    final p = context.palet;
     // RepaintBoundary: kartu jadi layer sendiri, jadi saat latar di
     // belakangnya bergerak, isi kartu nggak ikut digambar ulang.
     return RepaintBoundary(
       child: CustomPaint(
-        foregroundPainter: _GarisTepi(radius, gelap),
+        foregroundPainter:
+            _GarisTepi(radius, gelap ? p.tepiKacaGelap : p.tepiKaca),
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
@@ -215,10 +339,8 @@ class KartuKaca extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: gelap
-                  ? const [Color(0xF00F172A), Color(0xE61E293B)]
-                  // Lebih buram dari sebelumnya, ganti efek blur.
-                  : const [Color(0xA6FFFFFF), Color(0x66FFFFFF)],
+              // Kaca biasa dibuat agak buram, ganti efek blur.
+              colors: gelap ? p.kacaGelap : p.kaca,
             ),
           ),
           child: child,
@@ -231,10 +353,12 @@ class KartuKaca extends StatelessWidget {
 /// Garis tepi kaca: putih tajam di pojok kiri atas, memudar ke kanan bawah,
 /// seperti pantulan cahaya di tepi kaca.
 class _GarisTepi extends CustomPainter {
-  _GarisTepi(this.radius, this.gelap);
+  _GarisTepi(this.radius, this.warna);
 
   final double radius;
-  final bool gelap;
+
+  /// 3 warna: pojok kiri atas, tengah, pojok kanan bawah.
+  final List<Color> warna;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -245,9 +369,7 @@ class _GarisTepi extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: gelap
-            ? const [Color(0x59FFFFFF), Color(0x0DFFFFFF), Color(0x26FFFFFF)]
-            : const [Color(0xFFFFFFFF), Color(0x40FFFFFF), Color(0x290F172A)],
+        colors: warna,
         stops: const [0, 0.55, 1],
       ).createShader(kotak);
     canvas.drawRRect(
@@ -258,7 +380,7 @@ class _GarisTepi extends CustomPainter {
 
   @override
   bool shouldRepaint(_GarisTepi lama) =>
-      lama.radius != radius || lama.gelap != gelap;
+      lama.radius != radius || lama.warna != warna;
 }
 
 /// Versi Flutter dari `whileHover={{ y: -5 }}` di framer-motion.
@@ -307,15 +429,16 @@ class TombolUtama extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final aktif = onPressed != null;
+    final p = context.palet;
     return Material(
-      color: aktif ? warnaHitam : warnaAbu,
+      color: aktif ? p.aksen : warnaAbu,
       shape: const StadiumBorder(),
       elevation: 0,
       child: InkWell(
         customBorder: const StadiumBorder(),
         onTap: onPressed,
-        hoverColor: const Color(0x1FFFFFFF),
-        splashColor: const Color(0x33FFFFFF),
+        hoverColor: p.diAtasAksen.withAlpha(0x1F),
+        splashColor: p.diAtasAksen.withAlpha(0x33),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
           child: Row(
@@ -323,13 +446,13 @@ class TombolUtama extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (ikon != null) ...[
-                Icon(ikon, color: Colors.white, size: 18),
+                Icon(ikon, color: p.diAtasAksen, size: 18),
                 const SizedBox(width: 8),
               ],
               Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: p.diAtasAksen,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -357,6 +480,7 @@ class PilihanKaca extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palet;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -365,16 +489,16 @@ class PilihanKaca extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: dipilih ? warnaHitam : const Color(0x8CFFFFFF),
+            color: dipilih ? p.aksen : p.isiPilihan,
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: dipilih ? warnaHitam : const Color(0xFFFFFFFF),
+              color: dipilih ? p.aksen : p.tepi,
             ),
           ),
           child: Text(
             label,
             style: TextStyle(
-              color: dipilih ? Colors.white : warnaTeks,
+              color: dipilih ? p.diAtasAksen : p.teks,
               fontWeight: FontWeight.w600,
             ),
           ),

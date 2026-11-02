@@ -69,21 +69,35 @@ class _TebakAngkaAppState extends State<TebakAngkaApp> {
       pengaturan: _pengaturan,
       child: PencapaianScope(
         pencapaian: _pencapaian,
-        child: CallbackShortcuts(
-          bindings: {
-            const SingleActivator(LogicalKeyboardKey.f3): () =>
-                setState(() => _grafikPerforma = !_grafikPerforma),
-          },
-          child: MaterialApp(
-            title: 'Tebak Angka',
-            debugShowCheckedModeBanner: false,
-            showPerformanceOverlay: _grafikPerforma,
-            theme: ThemeData(colorSchemeSeed: warnaHitam),
-            home: Beranda(
-              pemuatKamus: widget.pemuatKamus,
-              latarBergerak: widget.latarBergerak,
-              simpanan: widget.simpanan,
-              jam: widget.jam,
+        child: ListenableBuilder(
+          listenable: _pengaturan,
+          builder: (context, _) => CallbackShortcuts(
+            bindings: {
+              const SingleActivator(LogicalKeyboardKey.f3): () =>
+                  setState(() => _grafikPerforma = !_grafikPerforma),
+            },
+            child: MaterialApp(
+              title: 'Tebak Angka',
+              debugShowCheckedModeBanner: false,
+              showPerformanceOverlay: _grafikPerforma,
+              themeMode: _pengaturan.tema,
+              theme: ThemeData(
+                colorSchemeSeed: const Color(0xFF0F172A),
+                extensions: const [Palet.terang],
+              ),
+              darkTheme: ThemeData(
+                colorScheme: ColorScheme.fromSeed(
+                  seedColor: const Color(0xFF0F172A),
+                  brightness: Brightness.dark,
+                ),
+                extensions: const [Palet.gelap],
+              ),
+              home: Beranda(
+                pemuatKamus: widget.pemuatKamus,
+                latarBergerak: widget.latarBergerak,
+                simpanan: widget.simpanan,
+                jam: widget.jam,
+              ),
             ),
           ),
         ),
@@ -213,15 +227,15 @@ class _BerandaState extends State<Beranda> {
       children: [
         Text(
           _sapaan(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w900,
-            color: warnaTeks,
+            color: context.palet.teks,
           ),
         ),
-        const Text(
+        Text(
           'Mau main apa hari ini?',
-          style: TextStyle(color: warnaTeksRedup),
+          style: TextStyle(color: context.palet.teksRedup),
         ),
       ],
     );
@@ -236,7 +250,7 @@ class _BerandaState extends State<Beranda> {
       children: [
         IconButton(
           tooltip: 'Pencapaian',
-          icon: const Icon(Icons.emoji_events_outlined, color: warnaTeks),
+          icon: Icon(Icons.emoji_events_outlined, color: context.palet.teks),
           onPressed: () => showDialog<void>(
             context: context,
             builder: (_) => const _DialogPencapaian(),
@@ -244,7 +258,7 @@ class _BerandaState extends State<Beranda> {
         ),
         IconButton(
           tooltip: 'Pengaturan',
-          icon: const Icon(Icons.settings_outlined, color: warnaTeks),
+          icon: Icon(Icons.settings_outlined, color: context.palet.teks),
           onPressed: _bukaPengaturan,
         ),
       ],
@@ -305,13 +319,13 @@ class _MenuSwitch extends StatelessWidget {
               child: FractionallySizedBox(
                 widthFactor: 1 / pilihan.length,
                 heightFactor: 1,
-                child: const DecoratedBox(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Color(0xFFFFFFFF),
+                    color: context.palet.permukaan,
                     borderRadius: BorderRadius.all(Radius.circular(999)),
                     // Garis tipis, bukan bayangan blur (lihat catatan di kaca.dart).
                     border: Border.fromBorderSide(
-                      BorderSide(color: Color(0x1A0F172A)),
+                      BorderSide(color: context.palet.garisHalus),
                     ),
                   ),
                 ),
@@ -330,7 +344,7 @@ class _MenuSwitch extends StatelessWidget {
                           style: TextStyle(
                             fontWeight:
                                 i == indeks ? FontWeight.w800 : FontWeight.w600,
-                            color: i == indeks ? warnaTeks : warnaTeksRedup,
+                            color: i == indeks ? context.palet.teks : context.palet.teksRedup,
                           ),
                           child: Text(pilihan[i]),
                         ),
@@ -382,7 +396,7 @@ class _DialogPengaturan extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: context.palet.dialog,
       title: const Text('Pengaturan'),
       contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
       content: ListenableBuilder(
@@ -390,6 +404,31 @@ class _DialogPengaturan extends StatelessWidget {
         builder: (context, _) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: SegmentedButton<ThemeMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: ThemeMode.system,
+                    label: Text('Sistem'),
+                    icon: Icon(Icons.brightness_auto_outlined),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.light,
+                    label: Text('Terang'),
+                    icon: Icon(Icons.light_mode_outlined),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.dark,
+                    label: Text('Gelap'),
+                    icon: Icon(Icons.dark_mode_outlined),
+                  ),
+                ],
+                selected: {pengaturan.tema},
+                onSelectionChanged: (pilihan) =>
+                    pengaturan.tema = pilihan.first,
+              ),
+            ),
             SwitchListTile(
               title: const Text('Animasi latar'),
               subtitle: const Text('Matikan kalau app terasa patah-patah.'),
@@ -432,7 +471,7 @@ class _DialogPencapaian extends StatelessWidget {
     final p = PencapaianScope.dari(context);
     final jumlah = p?.jumlahTerbuka ?? 0;
     return AlertDialog(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: context.palet.dialog,
       title: Text('Pencapaian ($jumlah/${daftarLencana.length})'),
       contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
       content: SizedBox(
@@ -448,20 +487,20 @@ class _DialogPencapaian extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Text(
                     'Tantangan harian beruntun: ${p!.harianBeruntun} hari',
-                    style: const TextStyle(color: warnaTeksRedup),
+                    style: TextStyle(color: context.palet.teksRedup),
                   ),
                 ),
               for (final l in daftarLencana)
                 ListTile(
                   leading: CircleAvatar(
                     backgroundColor: (p?.terbuka(l.id) ?? false)
-                        ? warnaHitam
-                        : const Color(0x1A0F172A),
+                        ? context.palet.aksen
+                        : context.palet.garisHalus,
                     child: Icon(
                       (p?.terbuka(l.id) ?? false) ? l.ikon : Icons.lock_outline,
                       color: (p?.terbuka(l.id) ?? false)
-                          ? Colors.white
-                          : warnaTeksRedup,
+                          ? context.palet.diAtasAksen
+                          : context.palet.teksRedup,
                       size: 20,
                     ),
                   ),
@@ -470,8 +509,8 @@ class _DialogPencapaian extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: (p?.terbuka(l.id) ?? false)
-                          ? warnaTeks
-                          : warnaTeksRedup,
+                          ? context.palet.teks
+                          : context.palet.teksRedup,
                     ),
                   ),
                   subtitle: Text(l.syarat),

@@ -100,8 +100,10 @@ Ada **16 pencapaian** (ikon piala) yang terbuka saat kamu melakukan sesuatu, mis
 menang dalam 1 tebakan, menyelesaikan tantangan harian 7 hari berturut-turut, atau
 membobol PIN tingkat Elite. Pencapaian nggak ikut terhapus saat statistik dihapus.
 
-Lewat tombol **Pengaturan** (ikon roda gigi) kamu bisa mematikan animasi latar kalau app
-terasa patah-patah, mematikan getar, atau menghapus semua statistik.
+Lewat tombol **Pengaturan** (ikon roda gigi) kamu bisa memilih tema terang, gelap, atau
+ikut setting sistem, mematikan animasi latar kalau app terasa patah-patah, mematikan getar,
+atau menghapus semua statistik. Semua warna yang berubah antara tema terang dan gelap
+dikumpulkan di satu palet (`Palet` di `flutter_app/lib/kaca.dart`).
 
 Logika game ada di `game.dart`, `komputer.dart`, `harian.dart`, `wordle.dart`,
 `hacker.dart`, dan `duel.dart` di `flutter_app/lib/` (tanpa Flutter, gampang dites). Tampilan ada di `halaman_angka.dart`, `halaman_wordle.dart`,
@@ -144,7 +146,7 @@ flutter build windows --release  # hasil: build/windows/x64/runner/Release/
 - [x] App: duel 2 pemain untuk tebak angka dan Mode Hacker
 - [x] App: Wordle mode sulit
 - [x] App: pencapaian (badge)
-- [ ] App: mode gelap
+- [x] App: mode gelap
 - [ ] App: tampilan bahasa Inggris
 
 ## Lisensi

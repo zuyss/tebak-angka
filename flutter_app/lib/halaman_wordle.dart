@@ -416,10 +416,10 @@ class _HalamanWordleState extends State<HalamanWordle> {
                   Text(
                     _pesan!,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: warnaTeks,
+                      color: context.palet.teks,
                     ),
                   ),
                 ],
@@ -434,7 +434,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
   }
 
   Widget _kartuPengaturan() {
-    const gayaLabel = TextStyle(color: warnaTeksRedup, fontSize: 13);
+    final gayaLabel = TextStyle(color: context.palet.teksRedup, fontSize: 13);
     return KartuKaca(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -462,7 +462,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
             ],
           ),
           const SizedBox(height: 12),
-          const Text('Bahasa', style: gayaLabel),
+          Text('Bahasa', style: gayaLabel),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -478,7 +478,7 @@ class _HalamanWordleState extends State<HalamanWordle> {
           ),
           if (!_harian) ...[
             const SizedBox(height: 12),
-            const Text('Jumlah huruf', style: gayaLabel),
+            Text('Jumlah huruf', style: gayaLabel),
             const SizedBox(height: 6),
             Wrap(
               spacing: 8,
@@ -513,8 +513,8 @@ class _HalamanWordleState extends State<HalamanWordle> {
                 ),
               Text(
                 'Main $_main   Menang $_menang   Beruntun $_beruntun',
-                style: const TextStyle(
-                  color: warnaTeks,
+                style: TextStyle(
+                  color: context.palet.teks,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -684,10 +684,10 @@ class _KotakHuruf extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: isi ??
-            (terisi ? const Color(0xB3FFFFFF) : const Color(0x59FFFFFF)),
+            (terisi ? context.palet.kotakTerisi : context.palet.kotakKosong),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isi ?? (terisi ? warnaHitam : const Color(0xE6FFFFFF)),
+          color: isi ?? (terisi ? context.palet.aksen : context.palet.tepi),
           width: isi == null && terisi ? 2.0 : 1.2,
         ),
       ),
@@ -696,7 +696,7 @@ class _KotakHuruf extends StatelessWidget {
         style: TextStyle(
           fontSize: ukuran * 0.45,
           fontWeight: FontWeight.w800,
-          color: isi == null ? warnaTeks : Colors.white,
+          color: isi == null ? context.palet.teks : Colors.white,
         ),
       ),
     );
@@ -749,7 +749,7 @@ class _TombolKey extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isi = _warnaStatus(status);
-    final warnaIsi = isi == null ? warnaTeks : Colors.white;
+    final warnaIsi = isi == null ? context.palet.teks : Colors.white;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2.5),
@@ -760,8 +760,8 @@ class _TombolKey extends StatelessWidget {
           child: Ink(
             height: 52,
             decoration: BoxDecoration(
-              color: isi ?? const Color(0x99FFFFFF),
-              border: Border.all(color: isi ?? const Color(0xE6FFFFFF)),
+              color: isi ?? context.palet.isi,
+              border: Border.all(color: isi ?? context.palet.tepi),
               borderRadius: BorderRadius.circular(10),
             ),
             child: InkWell(

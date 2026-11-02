@@ -2,6 +2,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -13,6 +14,8 @@ class Pengaturan extends ChangeNotifier {
     if (data != null) {
       _animasiLatar = data['animasiLatar'] != false;
       _getar = data['getar'] != false;
+      _tema = ThemeMode.values.where((m) => m.name == data['tema']).firstOrNull ??
+          ThemeMode.system;
     }
   }
 
@@ -27,6 +30,15 @@ class Pengaturan extends ChangeNotifier {
 
   bool _animasiLatar = true;
   bool _getar = true;
+  ThemeMode _tema = ThemeMode.system;
+
+  /// Tema terang, gelap, atau ikut setting sistem (bawaan).
+  ThemeMode get tema => _tema;
+  set tema(ThemeMode nilai) {
+    if (nilai == _tema) return;
+    _tema = nilai;
+    _simpanDanKabari();
+  }
 
   /// Latar bergerak pelan. Matikan kalau app terasa patah-patah.
   bool get animasiLatar => _animasiLatar;
@@ -48,6 +60,7 @@ class Pengaturan extends ChangeNotifier {
     simpanan?.tulis(_kunci, {
       'animasiLatar': _animasiLatar,
       'getar': _getar,
+      'tema': _tema.name,
     });
     notifyListeners();
   }

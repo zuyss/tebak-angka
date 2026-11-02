@@ -383,6 +383,27 @@ void main() {
       expect(Pengaturan(simpanan: SimpananMemori()).animasiLatar, isTrue);
     });
 
+    test('pilihan tema tersimpan, bawaannya ikut sistem', () {
+      final simpanan = SimpananMemori();
+      expect(Pengaturan(simpanan: simpanan).tema, ThemeMode.system);
+      Pengaturan(simpanan: simpanan).tema = ThemeMode.dark;
+      expect(Pengaturan(simpanan: simpanan).tema, ThemeMode.dark);
+      simpanan.tulis('pengaturan.v1', {'tema': 'ngaco'});
+      expect(Pengaturan(simpanan: simpanan).tema, ThemeMode.system);
+    });
+
+    test('palet terang dan gelap beda, warna bermakna tetap', () {
+      expect(Palet.terang.teks, isNot(Palet.gelap.teks));
+      expect(Palet.terang.lerp(Palet.gelap, 0.2), same(Palet.terang));
+      expect(Palet.terang.lerp(Palet.gelap, 0.8), same(Palet.gelap));
+      for (final p in [Palet.terang, Palet.gelap]) {
+        expect(p.latarDasar.length, 3);
+        expect(p.latarBayangan.length, 4);
+        expect(p.kaca.length, 2);
+        expect(p.tepiKaca.length, 3);
+      }
+    });
+
     test('hapus statistik nggak menghapus progres harian', () {
       final simpanan = SimpananMemori()
         ..tulis('tebak_angka.v1', {'menang': 3})
@@ -968,6 +989,30 @@ void main() {
       await ketuk(tester, find.byTooltip('Pencapaian'));
       expect(find.text('Pencapaian (1/${daftarLencana.length})'), findsOneWidget);
       expect(find.text('Akses diterima'), findsOneWidget);
+    });
+
+    testWidgets('mode gelap di layar $nama', (tester) async {
+      final simpanan = SimpananMemori();
+      await aturLayar(tester, ukuran, simpanan: simpanan);
+      Palet paletSekarang() =>
+          tester.element(find.byType(Beranda)).palet;
+      expect(paletSekarang(), same(Palet.terang)); // sistem test = terang
+
+      await ketuk(tester, find.byTooltip('Pengaturan'));
+      await ketuk(tester, find.text('Gelap'));
+      await ketuk(tester, find.text('Tutup'));
+      expect(paletSekarang(), same(Palet.gelap));
+
+      // Semua halaman tetap bisa dibuka di tema gelap.
+      await ketuk(tester, find.text('Wordle'));
+      await ketuk(tester, find.text('Hacker'));
+      await ketuk(tester, find.byTooltip('Pencapaian'));
+      expect(find.textContaining('Pencapaian ('), findsOneWidget);
+      await ketuk(tester, find.text('Tutup'));
+
+      // Pilihan tema diingat setelah app dibuka ulang.
+      await bukaUlang(tester, simpanan);
+      expect(paletSekarang(), same(Palet.gelap));
     });
 
     testWidgets('wordle di layar $nama', (tester) async {

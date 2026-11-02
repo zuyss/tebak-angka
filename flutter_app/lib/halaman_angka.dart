@@ -579,16 +579,16 @@ class _HalamanAngkaState extends State<HalamanAngka> {
 
   Widget _judul(String teks) => Text(
         teks,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w700,
-          color: warnaTeks,
+          color: context.palet.teks,
         ),
       );
 
   Widget _label(String teks) => Text(
         teks,
-        style: const TextStyle(color: warnaTeksRedup, fontSize: 13),
+        style: TextStyle(color: context.palet.teksRedup, fontSize: 13),
       );
 
   Widget _kartuMain() {
@@ -613,10 +613,10 @@ class _HalamanAngkaState extends State<HalamanAngka> {
             const SizedBox(height: 16),
             Text(
               _pesan!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: warnaTeks,
+                color: context.palet.teks,
               ),
             ),
           ],
@@ -699,10 +699,10 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         const SizedBox(height: 14),
         Text(
           _teksHasilDuel(duel),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w900,
-            color: warnaTeks,
+            color: context.palet.teks,
           ),
         ),
         const SizedBox(height: 4),
@@ -730,10 +730,10 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       const SizedBox(height: 4),
       Text(
         'Pemain $pembuat, bikin angka rahasia',
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w800,
-          color: warnaTeks,
+          color: context.palet.teks,
         ),
       ),
       const SizedBox(height: 4),
@@ -758,15 +758,15 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                 LengthLimitingTextInputFormatter(maxTebakanDigits),
               ],
               onSubmitted: (_) => _kunciRahasia(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: warnaTeks,
+                color: context.palet.teks,
               ),
               decoration: InputDecoration(
                 hintText: 'Angka rahasia',
                 filled: true,
-                fillColor: const Color(0x99FFFFFF),
+                fillColor: context.palet.isi,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(999),
                 ),
@@ -820,10 +820,10 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         const SizedBox(height: 4),
         Text(
           'Aku tebak ${k.tebakan}',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.w900,
-            color: warnaTeks,
+            color: context.palet.teks,
           ),
         ),
         const SizedBox(height: 14),
@@ -876,7 +876,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                 height: 8,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: const Color(0x260F172A),
+                    color: context.palet.jalur,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -890,7 +890,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                 height: 8,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: warnaHitam,
+                    color: context.palet.aksen,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -905,8 +905,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white,
-                    border: Border.all(color: warnaHitam, width: 4),
+                    color: context.palet.permukaan,
+                    border: Border.all(color: context.palet.aksen, width: 4),
                   ),
                 ),
               ),
@@ -930,10 +930,10 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           game.menang
               ? 'Kamu menang dalam ${hasil.length} percobaan.'
               : 'Belum beruntung. Angkanya ${game.rahasia}.',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: warnaTeks,
+            color: context.palet.teks,
           ),
         ),
         const SizedBox(height: 6),
@@ -1014,10 +1014,10 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       const SizedBox(height: 4),
       Text(
         'Sisa percobaan: ${game.sisa} dari ${game.level.nyawa}',
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w800,
-          color: warnaTeks,
+          color: context.palet.teks,
         ),
       ),
       const SizedBox(height: 10),
@@ -1029,7 +1029,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(ikonArah(terakhir.arah), size: 18, color: warnaTeksRedup),
+              Icon(ikonArah(terakhir.arah), size: 18, color: context.palet.teksRedup),
               const SizedBox(width: 6),
               Expanded(child: _label(teksArah(terakhir.arah))),
             ],
@@ -1057,26 +1057,26 @@ class _HalamanAngkaState extends State<HalamanAngka> {
               ],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _kirim(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: warnaTeks,
+                color: context.palet.teks,
               ),
               decoration: InputDecoration(
                 hintText: 'Tebakan kamu',
                 filled: true,
-                fillColor: const Color(0x99FFFFFF),
+                fillColor: context.palet.isi,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(999),
-                  borderSide: const BorderSide(color: Color(0xCCFFFFFF)),
+                  borderSide: BorderSide(color: context.palet.tepi),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(999),
-                  borderSide: const BorderSide(color: Color(0xCCFFFFFF)),
+                  borderSide: BorderSide(color: context.palet.tepi),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(999),
-                  borderSide: const BorderSide(color: warnaHitam, width: 1.5),
+                  borderSide: BorderSide(color: context.palet.aksen, width: 1.5),
                 ),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -1095,13 +1095,13 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       borderRadius: BorderRadius.circular(999),
       child: Container(
         height: 10,
-        color: const Color(0x331E1B4B),
+        color: context.palet.jalur,
         alignment: Alignment.centerLeft,
         child: AnimatedFractionallySizedBox(
           duration: const Duration(milliseconds: 300),
           widthFactor: nilai.clamp(0.0, 1.0),
-          child: const DecoratedBox(
-            decoration: BoxDecoration(color: warnaHitam),
+          child: DecoratedBox(
+            decoration: BoxDecoration(color: context.palet.aksen),
           ),
         ),
       ),
@@ -1112,7 +1112,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   /// yang bergeser ke suhu tebakan terakhir.
   Widget _meteranSuhu(Suhu? suhu) {
     final posisi = suhu == null ? 0.0 : suhu.index / (Suhu.values.length - 1);
-    final warna = suhu == null ? warnaTeksRedup : warnaSuhu(suhu);
+    final warna = suhu == null ? context.palet.teksRedup : warnaSuhu(suhu);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1161,7 +1161,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                     height: 24,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white,
+                      color: context.palet.permukaan,
                       border: Border.all(color: warna, width: 4),
                     ),
                   ),
@@ -1186,19 +1186,19 @@ class _HalamanAngkaState extends State<HalamanAngka> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0x8CFFFFFF),
+                color: context.palet.isiPilihan,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xCCFFFFFF)),
+                border: Border.all(color: context.palet.tepi),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.search, size: 18, color: warnaTeksRedup),
+                  Icon(Icons.search, size: 18, color: context.palet.teksRedup),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       p,
-                      style: const TextStyle(
-                        color: warnaTeks,
+                      style: TextStyle(
+                        color: context.palet.teks,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1222,7 +1222,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
       warna = warnaSuhu(suhu);
       keterangan = suhu.label.toLowerCase();
     } else {
-      warna = warnaTeks;
+      warna = context.palet.teks;
       keterangan = 'salah';
     }
 
@@ -1277,8 +1277,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
 
   Widget _kartuAngka(String judul, String nilai, IconData ikon,
       {bool aksen = false}) {
-    final warna = aksen ? Colors.white : warnaTeks;
-    final warnaRedup = aksen ? const Color(0xD9FFFFFF) : warnaTeksRedup;
+    final warna = aksen ? Colors.white : context.palet.teks;
+    final warnaRedup = aksen ? const Color(0xD9FFFFFF) : context.palet.teksRedup;
 
     return AngkatSaatHover(
       child: KartuKaca(
@@ -1339,9 +1339,9 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                               children: [
                                 Text(
                                   '${r.percobaan}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: warnaTeks,
+                                    color: context.palet.teks,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -1356,7 +1356,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                                     height: tinggi,
                                     decoration: BoxDecoration(
                                       color: r.menang
-                                          ? warnaHitam
+                                          ? context.palet.aksen
                                           : const Color(0x8094A3B8),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -1375,8 +1375,8 @@ class _HalamanAngkaState extends State<HalamanAngka> {
   }
 
   Widget _kartuRiwayat() {
-    const gayaKepala = TextStyle(color: warnaTeksRedup, fontSize: 12);
-    const gayaIsi = TextStyle(color: warnaTeks, fontWeight: FontWeight.w500);
+    final gayaKepala = TextStyle(color: context.palet.teksRedup, fontSize: 12);
+    final gayaIsi = TextStyle(color: context.palet.teks, fontWeight: FontWeight.w500);
 
     return KartuKaca(
       child: Column(
@@ -1394,7 +1394,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
               child: _label('Selesaikan satu ronde, hasilnya muncul di sini.'),
             )
           else ...[
-            const Row(
+            Row(
               children: [
                 Expanded(child: Text('Mode', style: gayaKepala)),
                 Expanded(child: Text('Level', style: gayaKepala)),
@@ -1403,7 +1403,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                 Expanded(child: Text('Hasil', style: gayaKepala)),
               ],
             ),
-            const Divider(color: Color(0x331E1B4B)),
+            Divider(color: context.palet.jalur),
             for (final r in _ronde.take(_maksTampil))
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1420,7 +1420,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: r.menang ? warnaHitam : const Color(0x4D94A3B8),
+                            color: r.menang ? context.palet.aksen : const Color(0x4D94A3B8),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
@@ -1428,7 +1428,7 @@ class _HalamanAngkaState extends State<HalamanAngka> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: r.menang ? Colors.white : warnaTeks,
+                              color: r.menang ? context.palet.diAtasAksen : context.palet.teks,
                             ),
                           ),
                         ),
