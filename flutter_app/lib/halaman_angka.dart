@@ -335,6 +335,11 @@ class _HalamanAngkaState extends State<HalamanAngka> {
         _daftarPetunjuk(game),
       const SizedBox(height: 18),
       Row(
+        // Key wajib di sini. Baris "makin dekat/jauh" di atas baru muncul
+        // mulai tebakan kedua; tanpa key, Flutter menganggap baris input
+        // ini widget baru, membuangnya, dan bikin ulang TextField-nya,
+        // sehingga fokus dan sambungan keyboard hilang.
+        key: const ValueKey('baris-input'),
         children: [
           Expanded(
             child: TextField(

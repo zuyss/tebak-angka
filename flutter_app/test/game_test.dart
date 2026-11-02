@@ -281,6 +281,28 @@ void main() {
       expect(find.text('Tebakan ronde ini'), findsOneWidget);
     });
 
+    testWidgets('kolom input tetap fokus setelah tebakan kedua di layar $nama',
+        (tester) async {
+      await aturLayar(tester, ukuran);
+      await ketuk(tester, find.text('Mulai'));
+
+      // Tebakan pertama.
+      await tester.enterText(find.byType(TextField), '1');
+      await ketuk(tester, find.text('Tebak'));
+      if (find.textContaining('Sisa percobaan').evaluate().isEmpty) return;
+      final sebelum = tester.state(find.byType(EditableText));
+
+      // Tebakan kedua memunculkan baris "makin dekat/jauh" di atas input.
+      await tester.enterText(find.byType(TextField), '2');
+      await ketuk(tester, find.text('Tebak'));
+      if (find.textContaining('Sisa percobaan').evaluate().isEmpty) return;
+
+      // TextField-nya harus tetap objek yang sama dan tetap fokus.
+      expect(tester.state(find.byType(EditableText)), same(sebelum));
+      final kolom = tester.widget<EditableText>(find.byType(EditableText));
+      expect(kolom.focusNode.hasFocus, isTrue);
+    });
+
     testWidgets('input di luar rentang diblok semua di layar $nama',
         (tester) async {
       await aturLayar(tester, ukuran);
