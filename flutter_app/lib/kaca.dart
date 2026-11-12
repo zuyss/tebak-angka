@@ -331,7 +331,7 @@ class _LatarBeningState extends State<LatarBening>
               child: IgnorePointer(
                 child: RepaintBoundary(
                   child: CustomPaint(
-                    painter: _PelukisPartikel(_waktu, context.palet, _ring),
+                    painter: _PelukisPartikel(_waktu, context.palet, _ring, _kursor),
                   ),
                 ),
               ),
@@ -453,17 +453,50 @@ class _PelukisLatar extends CustomPainter {
       lama.waktu != waktu || lama.palet != palet || lama.ring != ring;
 }
 
+/// Satu titik pada permukaan bola satuan. [x], [y], [z] di kisaran -1..1.
+class _Bola {
+  const _Bola(this.x, this.y, this.z, this.ukuran, this.warna);
+
+  final double x, y, z, ukuran;
+  final int warna;
+}
+
 /// Lapisan titik di atas konten.
 ///
 /// Dipisah dari _PelukisLatar supaya titik-titiknya tetap terlihat walau
 /// tertutup kartu putih. Ditaruh di atas konten seperti di referensi, tapi
 /// dengan alpha rendah supaya tidak mengganggu teks.
 class _PelukisPartikel extends CustomPainter {
-  _PelukisPartikel(this.waktu, this.palet, this.ring) : super(repaint: waktu);
+  _PelukisPartikel(this.waktu, this.palet, this.ring, this.kursor)
+      : super(repaint: waktu);
 
   final ValueListenable<double> waktu;
   final Palet palet;
   final ValueListenable<Offset> ring;
+
+  /// Posisi kursor; null kalau tidak ada mouse (mis. di HP).
+  final ValueListenable<Offset?> kursor;
+
+  /// Titik-titik bola, disebar merata di permukaan bola (fibonacci sphere).
+  static final List<_Bola> _bola = _buatBola();
+
+  static List<_Bola> _buatBola() {
+    const jumlah = 72;
+    final emas = pi * (3 - sqrt(5));
+    final acak = Random(7);
+    return List.generate(jumlah, (i) {
+      final y = 1 - (i / (jumlah - 1)) * 2;
+      final jari = sqrt(max(0.0, 1 - y * y));
+      final sudut = emas * i;
+      return _Bola(
+        cos(sudut) * jari,
+        y,
+        sin(sudut) * jari,
+        0.7 + acak.nextDouble() * 1.1,
+        acak.nextInt(4),
+      );
+    });
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -515,11 +548,41 @@ class _PelukisPartikel extends CustomPainter {
         cat,
       );
     }
+
+    // Bola titik: kumpulan titik di permukaan bola 3D yang diputar pelan,
+    // lalu diproyeksikan ke layar. Ini yang memberi bentuk membulat dan
+    // mengikuti kursor. Hanya digambar kalau ada kursor (di HP tidak ada).
+    if (kursor.value == null) return;
+    final jariBola = 0.105 * dasar;
+    final putar = detik * 0.35;
+    final miring = 0.38;
+
+    for (final b in _bola) {
+      // Rotasi terhadap sumbu Y.
+      final x1 = b.x * cos(putar) + b.z * sin(putar);
+      final z1 = -b.x * sin(putar) + b.z * cos(putar);
+      // Miringkan sedikit terhadap sumbu X.
+      final y1 = b.y * cos(miring) - z1 * sin(miring);
+      final z2 = b.y * sin(miring) + z1 * cos(miring);
+
+      final skala = 0.82 + (z2 + 1) * 0.22;
+      final px = pusatRing.dx + x1 * jariBola * skala;
+      final py = pusatRing.dy + y1 * jariBola * skala;
+
+      // Yang di belakang lebih redup dan lebih kecil.
+      final terang = (0.30 + 0.70 * ((z2 + 1) / 2)).clamp(0.0, 1.0);
+      final rona = palet.partikel[b.warna % palet.partikel.length];
+      cat.color = rona.withAlpha((165 * terang).round().clamp(0, 255));
+      canvas.drawCircle(Offset(px, py), b.ukuran * skala, cat);
+    }
   }
 
   @override
   bool shouldRepaint(_PelukisPartikel lama) =>
-      lama.waktu != waktu || lama.palet != palet || lama.ring != ring;
+      lama.waktu != waktu ||
+      lama.palet != palet ||
+      lama.ring != ring ||
+      lama.kursor != kursor;
 }
 
 /// Kartu kaca putih bening. Dengan [gelap], kartu jadi kaca hitam
