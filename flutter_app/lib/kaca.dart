@@ -46,6 +46,7 @@ class Palet extends ThemeExtension<Palet> {
     required this.tepiKaca,
     required this.kacaGelap,
     required this.tepiKacaGelap,
+    required this.partikel,
   });
 
   /// Teks utama dan teks sekunder.
@@ -78,31 +79,41 @@ class Palet extends ThemeExtension<Palet> {
   /// Gradasi kartu kaca gelap (terminal, kartu yang ditonjolkan) dan tepinya.
   final List<Color> kacaGelap, tepiKacaGelap;
 
+  /// Warna titik-titik kecil yang melayang di latar. Diberi alpha saat
+  /// digambar, jadi isi daftar ini sebaiknya warna pekat.
+  final List<Color> partikel;
+
   static const terang = Palet(
-    teks: Color(0xFF0F172A),
-    teksRedup: Color(0x990F172A),
-    aksen: Color(0xFF0F172A),
+    teks: Color(0xFF0A0A0A),
+    teksRedup: Color(0x990A0A0A),
+    aksen: Color(0xFF0A0A0A),
     diAtasAksen: Color(0xFFFFFFFF),
-    garisHalus: Color(0x1A0F172A),
-    jalur: Color(0x260F172A),
-    isi: Color(0x99FFFFFF),
-    isiPilihan: Color(0x8CFFFFFF),
-    tepi: Color(0xE6FFFFFF),
+    garisHalus: Color(0x140A0A0A),
+    jalur: Color(0x1F0A0A0A),
+    isi: Color(0xB3FFFFFF),
+    isiPilihan: Color(0xA6FFFFFF),
+    tepi: Color(0xFFFFFFFF),
     permukaan: Color(0xFFFFFFFF),
-    dialog: Color(0xFFF8FAFC),
-    kotakKosong: Color(0x59FFFFFF),
-    kotakTerisi: Color(0xB3FFFFFF),
-    latarDasar: [Color(0xFFE6EBF1), Color(0xFFF5F6F8), Color(0xFFE2E6EB)],
+    dialog: Color(0xFFFFFFFF),
+    kotakKosong: Color(0x66FFFFFF),
+    kotakTerisi: Color(0xC2FFFFFF),
+    latarDasar: [Color(0xFFFFFFFF), Color(0xFFF7F7F5), Color(0xFFF0F0EE)],
     latarBayangan: [
-      Color(0xFFB3C1D1),
-      Color(0xFFD9CEC1),
-      Color(0xFFBCC8D6),
-      Color(0xFFE0D6CB),
+      Color(0xFFE8E8E5),
+      Color(0xFFEDE8E2),
+      Color(0xFFE6E8EA),
+      Color(0xFFF0ECE6),
     ],
-    kaca: [Color(0xA6FFFFFF), Color(0x66FFFFFF)],
-    tepiKaca: [Color(0xFFFFFFFF), Color(0x40FFFFFF), Color(0x290F172A)],
-    kacaGelap: [Color(0xF00F172A), Color(0xE61E293B)],
+    kaca: [Color(0xE6FFFFFF), Color(0xC2FFFFFF)],
+    tepiKaca: [Color(0xFFFFFFFF), Color(0x66FFFFFF), Color(0x140A0A0A)],
+    kacaGelap: [Color(0xF00A0A0A), Color(0xE61C1C1C)],
     tepiKacaGelap: [Color(0x59FFFFFF), Color(0x0DFFFFFF), Color(0x26FFFFFF)],
+    partikel: [
+      Color(0xFF4B7BEC),
+      Color(0xFFE05656),
+      Color(0xFFE0A030),
+      Color(0xFF3F9E6A),
+    ],
   );
 
   static const gelap = Palet(
@@ -130,6 +141,12 @@ class Palet extends ThemeExtension<Palet> {
     tepiKaca: [Color(0x4DFFFFFF), Color(0x0DFFFFFF), Color(0x40000000)],
     kacaGelap: [Color(0xF5020617), Color(0xEB0F172A)],
     tepiKacaGelap: [Color(0x40FFFFFF), Color(0x0DFFFFFF), Color(0x26FFFFFF)],
+    partikel: [
+      Color(0xFF7FA6FF),
+      Color(0xFFFF8A8A),
+      Color(0xFFFFC96B),
+      Color(0xFF6EE7B7),
+    ],
   );
 
   /// Tema rahasia (hadiah arsip tersembunyi): fosfor hijau ala terminal.
@@ -158,6 +175,12 @@ class Palet extends ThemeExtension<Palet> {
     tepiKaca: [Color(0x664ADE80), Color(0x0D4ADE80), Color(0x40000000)],
     kacaGelap: [Color(0xF5000A04), Color(0xEB03170B)],
     tepiKacaGelap: [Color(0x594ADE80), Color(0x0D4ADE80), Color(0x264ADE80)],
+    partikel: [
+      Color(0xFF4ADE80),
+      Color(0xFF86EFAC),
+      Color(0xFF22C55E),
+      Color(0xFFB7F7C4),
+    ],
   );
 
   @override
@@ -189,14 +212,23 @@ class LatarBening extends StatefulWidget {
 
 class _LatarBeningState extends State<LatarBening>
     with WidgetsBindingObserver {
-  /// Posisi siklus animasi, 0..1. Painter mendengarkan ini lewat `repaint`.
+  /// Detik berjalan (tidak dibungkus). Painter mendengarkan ini lewat `repaint`.
   final _waktu = ValueNotifier<double>(0);
+
+  /// Posisi kursor dalam koordinat 0..1, null kalau kursor di luar jendela.
+  final _kursor = ValueNotifier<Offset?>(null);
+
+  /// Ring yang mengikuti kursor dengan easing, juga 0..1.
+  final _ring = ValueNotifier<Offset>(const Offset(0.5, 0.45));
+
   final _stopwatch = Stopwatch();
   Timer? _timer;
   bool _appTerlihat = true;
 
-  static const _siklus = Duration(seconds: 40);
   static const _jedaFrame = Duration(milliseconds: 33); // ~30 fps
+
+  /// Seberapa cepat ring menyusul kursor (per frame 30 fps).
+  static const _kejarRing = 0.07;
 
   @override
   void initState() {
@@ -233,10 +265,18 @@ class _LatarBeningState extends State<LatarBening>
     if (gerak && _timer == null) {
       _stopwatch.start();
       _timer = Timer.periodic(_jedaFrame, (_) {
-        // Hitung dari jam, bukan jumlah tick: Timer di Windows nggak
-        // presisi, tapi posisinya tetap halus.
-        final ms = _stopwatch.elapsedMilliseconds % _siklus.inMilliseconds;
-        _waktu.value = ms / _siklus.inMilliseconds;
+        // Detik berjalan, tanpa dibungkus: partikel butuh waktu yang terus
+        // naik supaya geraknya tidak melompat saat siklus latar berulang.
+        _waktu.value = _stopwatch.elapsedMilliseconds / 1000.0;
+
+        // Ring menyusul kursor dengan easing. Kalau kursor keluar jendela,
+        // ring pelan-pelan kembali ke tengah.
+        final tujuan = _kursor.value ?? const Offset(0.5, 0.45);
+        final r = _ring.value;
+        _ring.value = Offset(
+          r.dx + (tujuan.dx - r.dx) * _kejarRing,
+          r.dy + (tujuan.dy - r.dy) * _kejarRing,
+        );
       });
     } else if (!gerak && _timer != null) {
       _timer!.cancel();
@@ -250,20 +290,55 @@ class _LatarBeningState extends State<LatarBening>
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _waktu.dispose();
+    _kursor.dispose();
+    _ring.dispose();
     super.dispose();
+  }
+
+  /// Simpan posisi kursor dalam 0..1, supaya painter tidak perlu tahu ukuran
+  /// widget. Dipasang di luar Stack agar tetap menerima hover walau ada
+  /// konten di atas latar.
+  void _perbaruiKursor(Offset lokal) {
+    final ukuran = context.size;
+    if (ukuran == null || ukuran.isEmpty) return;
+    _kursor.value = Offset(
+      lokal.dx / ukuran.width,
+      lokal.dy / ukuran.height,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: RepaintBoundary(
-            child: CustomPaint(painter: _PelukisLatar(_waktu, context.palet)),
-          ),
+    return MouseRegion(
+      onHover: (e) => _perbaruiKursor(e.localPosition),
+      onExit: (_) => _kursor.value = null,
+      child: Listener(
+        onPointerMove: (e) => _perbaruiKursor(e.localPosition),
+        onPointerHover: (e) => _perbaruiKursor(e.localPosition),
+        onPointerCancel: (_) => _kursor.value = null,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: _PelukisLatar(_waktu, context.palet, _ring),
+                ),
+              ),
+            ),
+            Positioned.fill(child: widget.child),
+            // Titik di atas konten, dan tidak menangkap sentuhan/klik.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _PelukisPartikel(_waktu, context.palet, _ring, _kursor),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        Positioned.fill(child: widget.child),
-      ],
+      ),
     );
   }
 }
@@ -279,13 +354,33 @@ class _Bayangan {
   final double fase;
 }
 
+/// Satu titik kecil di latar.
+///
+/// [x] dan [y] adalah posisi dasar (0..1), [z] kedalaman 0..1 (mempengaruhi
+/// ukuran, memberi kesan ada jarak), [kec] kecepatan osilasi, [ukuran] ukuran
+/// dasar dalam piksel logis, [warna] indeks palet, [fase] pemisah ritme.
+class _Partikel {
+  const _Partikel(
+      this.x, this.y, this.z, this.kec, this.ukuran, this.warna, this.fase);
+
+  final double x, y, z, kec, ukuran, fase;
+  final int warna;
+}
+
 class _PelukisLatar extends CustomPainter {
   // repaint: waktu -> cuma painter ini yang digambar ulang tiap frame,
   // tanpa membangun ulang widget apa pun.
-  _PelukisLatar(this.waktu, this.palet) : super(repaint: waktu);
+  _PelukisLatar(this.waktu, this.palet, this.ring) : super(repaint: waktu);
 
   final ValueListenable<double> waktu;
   final Palet palet;
+
+  /// Pusat ring (0..1). Partikel didorong keluar saat kena ring ini, jadi
+  /// kursor terlihat seperti "bola" kosong yang mengikuti gerak mouse.
+  final ValueListenable<Offset> ring;
+
+  /// Satu putaran penuh ayunan bayangan latar, dalam detik.
+  static const _periodeLatar = 40.0;
 
   /// Warna tiap bayangan diambil dari palet.latarBayangan, urut.
   static const _bayangan = [
@@ -294,6 +389,26 @@ class _PelukisLatar extends CustomPainter {
     _Bayangan(0.60, 1.00, 0.14, 0.06, 0.95, 3.4),
     _Bayangan(0.00, 0.85, 0.07, 0.10, 0.60, 4.6),
   ];
+
+  /// Titik latar. Dibuat sekali dengan seed tetap supaya posisinya tidak
+  /// berubah setiap kali widget dibangun ulang.
+  static final List<_Partikel> _titik = _buatTitik();
+
+  static List<_Partikel> _buatTitik() {
+    final acak = Random(2026);
+    return List.generate(380, (_) {
+      final kedalaman = acak.nextDouble();
+      return _Partikel(
+        acak.nextDouble(),
+        acak.nextDouble(),
+        kedalaman,
+        0.25 + acak.nextDouble() * 0.85,
+        0.9 + acak.nextDouble() * 1.8,
+        acak.nextInt(4),
+        acak.nextDouble() * 2 * pi,
+      );
+    });
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -308,7 +423,8 @@ class _PelukisLatar extends CustomPainter {
         ).createShader(layar),
     );
 
-    final t = waktu.value * 2 * pi;
+    // Siklus latar tetap 40 detik, sementara waktu kini dalam detik.
+    final t = waktu.value * 2 * pi / _periodeLatar;
     final sisiPanjang = max(size.width, size.height);
     for (var i = 0; i < _bayangan.length; i++) {
       final b = _bayangan[i];
@@ -327,11 +443,88 @@ class _PelukisLatar extends CustomPainter {
           ).createShader(Rect.fromCircle(center: pusat, radius: jari)),
       );
     }
+
+    // Titik-titik digambar oleh lapisan terpisah di atas konten, lihat
+    // _PelukisPartikel. Di sini hanya latar.
   }
 
   @override
   bool shouldRepaint(_PelukisLatar lama) =>
-      lama.waktu != waktu || lama.palet != palet;
+      lama.waktu != waktu || lama.palet != palet || lama.ring != ring;
+}
+
+/// Lapisan titik di atas konten.
+///
+/// Dipisah dari _PelukisLatar supaya titik-titiknya tetap terlihat walau
+/// tertutup kartu putih. Ditaruh di atas konten seperti di referensi, tapi
+/// dengan alpha rendah supaya tidak mengganggu teks.
+class _PelukisPartikel extends CustomPainter {
+  _PelukisPartikel(this.waktu, this.palet, this.ring, this.kursor)
+      : super(repaint: waktu);
+
+  final ValueListenable<double> waktu;
+  final Palet palet;
+  final ValueListenable<Offset> ring;
+
+  /// Posisi kursor; null kalau tidak ada mouse (mis. di HP).
+  final ValueListenable<Offset?> kursor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final detik = waktu.value;
+    final cat = Paint();
+
+    // Efek membulat: medan titik di sekitar kursor digembungkan seperti
+    // lensa. Titik yang dekat kursor didorong keluar dari pusat, jadi
+    // bagian tengah merenggang dan tepinya memadat — membentuk dome.
+    final dasar = min(size.width, size.height);
+    final pusat =
+        Offset(ring.value.dx * size.width, ring.value.dy * size.height);
+    final jariLensa = (0.26 + 0.02 * sin(detik)) * dasar;
+    final gembung = 0.85;
+    final r2 = jariLensa * jariLensa;
+
+    for (final p in _PelukisLatar._titik) {
+      final jalan = detik * p.kec;
+      final x = (p.x +
+              0.020 * sin(jalan + p.fase) +
+              0.006 * cos(jalan * 0.7 + p.fase)) %
+          1.0;
+      final y = (p.y +
+              0.016 * cos(jalan * 1.15 + p.fase) +
+              0.006 * sin(jalan * 0.6 + p.fase)) %
+          1.0;
+
+      var px = x * size.width;
+      var py = y * size.height;
+
+      // Seluruh medan ikut bergeser: pengaruhnya 1 di pusat dan mengecil
+      // mengikuti jarak, tapi tidak pernah benar-benar nol. Jadi kursor
+      // terasa "mengangkat" seluruh permukaan, bukan cuma lingkaran kecil.
+      final vx = px - pusat.dx;
+      final vy = py - pusat.dy;
+      final turun = r2 / (vx * vx + vy * vy + r2);
+      final skala = 1 + gembung * turun * turun;
+      px = pusat.dx + vx * skala;
+      py = pusat.dy + vy * skala;
+
+      final kedip = 0.62 + 0.38 * sin(jalan * 1.7 + p.fase);
+      final rona = palet.partikel[p.warna % palet.partikel.length];
+      cat.color = rona.withAlpha((95 * kedip).round().clamp(0, 255));
+      canvas.drawCircle(
+        Offset(px, py),
+        p.ukuran * (0.7 + p.z * 0.8) * (1 + (skala - 1) * 1.0),
+        cat,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PelukisPartikel lama) =>
+      lama.waktu != waktu ||
+      lama.palet != palet ||
+      lama.ring != ring ||
+      lama.kursor != kursor;
 }
 
 /// Kartu kaca putih bening. Dengan [gelap], kartu jadi kaca hitam
