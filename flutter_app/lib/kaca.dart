@@ -396,7 +396,7 @@ class _PelukisLatar extends CustomPainter {
 
   static List<_Partikel> _buatTitik() {
     final acak = Random(2026);
-    return List.generate(150, (_) {
+    return List.generate(380, (_) {
       final kedalaman = acak.nextDouble();
       return _Partikel(
         acak.nextDouble(),
@@ -453,14 +453,6 @@ class _PelukisLatar extends CustomPainter {
       lama.waktu != waktu || lama.palet != palet || lama.ring != ring;
 }
 
-/// Satu titik pada permukaan bola satuan. [x], [y], [z] di kisaran -1..1.
-class _Bola {
-  const _Bola(this.x, this.y, this.z, this.ukuran, this.warna);
-
-  final double x, y, z, ukuran;
-  final int warna;
-}
-
 /// Lapisan titik di atas konten.
 ///
 /// Dipisah dari _PelukisLatar supaya titik-titiknya tetap terlihat walau
@@ -477,42 +469,19 @@ class _PelukisPartikel extends CustomPainter {
   /// Posisi kursor; null kalau tidak ada mouse (mis. di HP).
   final ValueListenable<Offset?> kursor;
 
-  /// Titik-titik bola, disebar merata di permukaan bola (fibonacci sphere).
-  static final List<_Bola> _bola = _buatBola();
-
-  static List<_Bola> _buatBola() {
-    const jumlah = 72;
-    final emas = pi * (3 - sqrt(5));
-    final acak = Random(7);
-    return List.generate(jumlah, (i) {
-      final y = 1 - (i / (jumlah - 1)) * 2;
-      final jari = sqrt(max(0.0, 1 - y * y));
-      final sudut = emas * i;
-      return _Bola(
-        cos(sudut) * jari,
-        y,
-        sin(sudut) * jari,
-        0.7 + acak.nextDouble() * 1.1,
-        acak.nextInt(4),
-      );
-    });
-  }
-
   @override
   void paint(Canvas canvas, Size size) {
     final detik = waktu.value;
     final cat = Paint();
 
-    // Ring kursor: radius ikut "bernafas" seperti referensi
-    // (0.175 + sin(t)*0.03 + cos(3t)*0.02), lalu partikel yang kena
-    // dinding ring didorong keluar.
+    // Efek membulat: medan titik di sekitar kursor digembungkan seperti
+    // lensa. Titik yang dekat kursor didorong keluar dari pusat, jadi
+    // bagian tengah merenggang dan tepinya memadat — membentuk dome.
     final dasar = min(size.width, size.height);
-    final pusatRing =
+    final pusat =
         Offset(ring.value.dx * size.width, ring.value.dy * size.height);
-    final radiusRing =
-        (0.135 + 0.025 * sin(detik) + 0.015 * cos(detik * 3)) * dasar;
-    final lebarRing = 0.07 * dasar;
-    final dorongRing = 0.090 * dasar;
+    final jariLensa = (0.26 + 0.02 * sin(detik)) * dasar;
+    final gembung = 2.40;
 
     for (final p in _PelukisLatar._titik) {
       final jalan = detik * p.kec;
@@ -528,15 +497,16 @@ class _PelukisPartikel extends CustomPainter {
       var px = x * size.width;
       var py = y * size.height;
 
-      final vektor = Offset(px - pusatRing.dx, py - pusatRing.dy);
-      final jarak = vektor.distance;
-      final kena =
-          (1 - ((jarak - radiusRing).abs() / lebarRing)).clamp(0.0, 1.0).toDouble();
-      if (kena > 0) {
-        final arah = jarak < 0.01 ? const Offset(1, 0) : vektor / jarak;
-        final geser = (pow(kena, 0.75) * dorongRing).toDouble();
-        px += arah.dx * geser;
-        py += arah.dy * geser;
+      final vx = px - pusat.dx;
+      final vy = py - pusat.dy;
+      final jarak = sqrt(vx * vx + vy * vy);
+      var skala = 1.0;
+      if (jarak < jariLensa && jarak > 0.5) {
+        // 1 di pusat, 0 di tepi lensa; pangkat membuat puncaknya halus.
+        final t = 1 - jarak / jariLensa;
+        skala = 1 + gembung * t * t;
+        px = pusat.dx + vx * skala;
+        py = pusat.dy + vy * skala;
       }
 
       final kedip = 0.62 + 0.38 * sin(jalan * 1.7 + p.fase);
@@ -544,36 +514,9 @@ class _PelukisPartikel extends CustomPainter {
       cat.color = rona.withAlpha((95 * kedip).round().clamp(0, 255));
       canvas.drawCircle(
         Offset(px, py),
-        p.ukuran * (0.7 + p.z * 0.8),
+        p.ukuran * (0.7 + p.z * 0.8) * (1 + (skala - 1) * 1.0),
         cat,
       );
-    }
-
-    // Bola titik: kumpulan titik di permukaan bola 3D yang diputar pelan,
-    // lalu diproyeksikan ke layar. Ini yang memberi bentuk membulat dan
-    // mengikuti kursor. Hanya digambar kalau ada kursor (di HP tidak ada).
-    if (kursor.value == null) return;
-    final jariBola = 0.105 * dasar;
-    final putar = detik * 0.35;
-    final miring = 0.38;
-
-    for (final b in _bola) {
-      // Rotasi terhadap sumbu Y.
-      final x1 = b.x * cos(putar) + b.z * sin(putar);
-      final z1 = -b.x * sin(putar) + b.z * cos(putar);
-      // Miringkan sedikit terhadap sumbu X.
-      final y1 = b.y * cos(miring) - z1 * sin(miring);
-      final z2 = b.y * sin(miring) + z1 * cos(miring);
-
-      final skala = 0.82 + (z2 + 1) * 0.22;
-      final px = pusatRing.dx + x1 * jariBola * skala;
-      final py = pusatRing.dy + y1 * jariBola * skala;
-
-      // Yang di belakang lebih redup dan lebih kecil.
-      final terang = (0.30 + 0.70 * ((z2 + 1) / 2)).clamp(0.0, 1.0);
-      final rona = palet.partikel[b.warna % palet.partikel.length];
-      cat.color = rona.withAlpha((165 * terang).round().clamp(0, 255));
-      canvas.drawCircle(Offset(px, py), b.ukuran * skala, cat);
     }
   }
 
