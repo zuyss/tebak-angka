@@ -218,7 +218,6 @@ class _LatarBeningState extends State<LatarBening>
   Timer? _timer;
   bool _appTerlihat = true;
 
-  static const _siklus = Duration(seconds: 40);
   static const _jedaFrame = Duration(milliseconds: 33); // ~30 fps
 
   @override
@@ -256,10 +255,9 @@ class _LatarBeningState extends State<LatarBening>
     if (gerak && _timer == null) {
       _stopwatch.start();
       _timer = Timer.periodic(_jedaFrame, (_) {
-        // Hitung dari jam, bukan jumlah tick: Timer di Windows nggak
-        // presisi, tapi posisinya tetap halus.
-        final ms = _stopwatch.elapsedMilliseconds % _siklus.inMilliseconds;
-        _waktu.value = ms / _siklus.inMilliseconds;
+        // Detik berjalan, tanpa dibungkus: partikel butuh waktu yang terus
+        // naik supaya geraknya tidak melompat saat siklus latar berulang.
+        _waktu.value = _stopwatch.elapsedMilliseconds / 1000.0;
       });
     } else if (!gerak && _timer != null) {
       _timer!.cancel();
@@ -302,13 +300,16 @@ class _Bayangan {
   final double fase;
 }
 
-/// Satu titik kecil di latar: posisi awal (0..1), geseran per siklus,
-/// ukuran dalam piksel logis, indeks warna, dan fase ayunan.
+/// Satu titik kecil di latar.
+///
+/// [x] dan [y] adalah posisi dasar (0..1), [z] kedalaman 0..1 (mempengaruhi
+/// ukuran, memberi kesan ada jarak), [kec] kecepatan osilasi, [ukuran] ukuran
+/// dasar dalam piksel logis, [warna] indeks palet, [fase] pemisah ritme.
 class _Partikel {
   const _Partikel(
-      this.x, this.y, this.geserX, this.geserY, this.ukuran, this.warna, this.fase);
+      this.x, this.y, this.z, this.kec, this.ukuran, this.warna, this.fase);
 
-  final double x, y, geserX, geserY, ukuran, fase;
+  final double x, y, z, kec, ukuran, fase;
   final int warna;
 }
 
@@ -319,6 +320,9 @@ class _PelukisLatar extends CustomPainter {
 
   final ValueListenable<double> waktu;
   final Palet palet;
+
+  /// Satu putaran penuh ayunan bayangan latar, dalam detik.
+  static const _periodeLatar = 40.0;
 
   /// Warna tiap bayangan diambil dari palet.latarBayangan, urut.
   static const _bayangan = [
@@ -334,13 +338,14 @@ class _PelukisLatar extends CustomPainter {
 
   static List<_Partikel> _buatTitik() {
     final acak = Random(2026);
-    return List.generate(130, (_) {
+    return List.generate(200, (_) {
+      final kedalaman = acak.nextDouble();
       return _Partikel(
         acak.nextDouble(),
         acak.nextDouble(),
-        (acak.nextDouble() - 0.5) * 0.35,
-        (acak.nextDouble() - 0.5) * 0.20,
-        1.2 + acak.nextDouble() * 2.2,
+        kedalaman,
+        0.25 + acak.nextDouble() * 0.85,
+        0.9 + acak.nextDouble() * 1.8,
         acak.nextInt(4),
         acak.nextDouble() * 2 * pi,
       );
@@ -360,7 +365,8 @@ class _PelukisLatar extends CustomPainter {
         ).createShader(layar),
     );
 
-    final t = waktu.value * 2 * pi;
+    // Siklus latar tetap 40 detik, sementara waktu kini dalam detik.
+    final t = waktu.value * 2 * pi / _periodeLatar;
     final sisiPanjang = max(size.width, size.height);
     for (var i = 0; i < _bayangan.length; i++) {
       final b = _bayangan[i];
@@ -380,15 +386,32 @@ class _PelukisLatar extends CustomPainter {
       );
     }
 
-    // Titik-titik halus di atas latar. Digeser pelan dan dibungkus ke sisi
-    // seberang saat keluar layar, jadi tidak ada yang hilang.
+    // Titik-titik halus di atas latar.
+    //
+    // Tiap titik berayun dengan kecepatan dan fase sendiri (bukan drift
+    // linier yang serempak), plus kedipan alpha pelan. Gerakannya maju-mundur
+    // di sekitar posisi dasar, jadi tidak pernah "habis" dan tidak melompat
+    // saat siklus latar berulang.
+    final detik = waktu.value;
     final cat = Paint();
     for (final p in _titik) {
-      final x = (p.x + p.geserX * waktu.value + sin(t + p.fase) * 0.004) % 1.0;
-      final y = (p.y + p.geserY * waktu.value + cos(t + p.fase) * 0.004) % 1.0;
+      final jalan = detik * p.kec;
+      final x = (p.x +
+              0.020 * sin(jalan + p.fase) +
+              0.006 * cos(jalan * 0.7 + p.fase)) %
+          1.0;
+      final y = (p.y +
+              0.016 * cos(jalan * 1.15 + p.fase) +
+              0.006 * sin(jalan * 0.6 + p.fase)) %
+          1.0;
+      final kedip = 0.62 + 0.38 * sin(jalan * 1.7 + p.fase);
       final rona = palet.partikel[p.warna % palet.partikel.length];
-      cat.color = rona.withAlpha(200);
-      canvas.drawCircle(Offset(x * size.width, y * size.height), p.ukuran, cat);
+      cat.color = rona.withAlpha((205 * kedip).round().clamp(0, 255));
+      canvas.drawCircle(
+        Offset(x * size.width, y * size.height),
+        p.ukuran * (0.7 + p.z * 0.8),
+        cat,
+      );
     }
   }
 
