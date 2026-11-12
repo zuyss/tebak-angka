@@ -481,7 +481,8 @@ class _PelukisPartikel extends CustomPainter {
     final pusat =
         Offset(ring.value.dx * size.width, ring.value.dy * size.height);
     final jariLensa = (0.26 + 0.02 * sin(detik)) * dasar;
-    final gembung = 2.40;
+    final gembung = 0.85;
+    final r2 = jariLensa * jariLensa;
 
     for (final p in _PelukisLatar._titik) {
       final jalan = detik * p.kec;
@@ -497,17 +498,15 @@ class _PelukisPartikel extends CustomPainter {
       var px = x * size.width;
       var py = y * size.height;
 
+      // Seluruh medan ikut bergeser: pengaruhnya 1 di pusat dan mengecil
+      // mengikuti jarak, tapi tidak pernah benar-benar nol. Jadi kursor
+      // terasa "mengangkat" seluruh permukaan, bukan cuma lingkaran kecil.
       final vx = px - pusat.dx;
       final vy = py - pusat.dy;
-      final jarak = sqrt(vx * vx + vy * vy);
-      var skala = 1.0;
-      if (jarak < jariLensa && jarak > 0.5) {
-        // 1 di pusat, 0 di tepi lensa; pangkat membuat puncaknya halus.
-        final t = 1 - jarak / jariLensa;
-        skala = 1 + gembung * t * t;
-        px = pusat.dx + vx * skala;
-        py = pusat.dy + vy * skala;
-      }
+      final turun = r2 / (vx * vx + vy * vy + r2);
+      final skala = 1 + gembung * turun * turun;
+      px = pusat.dx + vx * skala;
+      py = pusat.dy + vy * skala;
 
       final kedip = 0.62 + 0.38 * sin(jalan * 1.7 + p.fase);
       final rona = palet.partikel[p.warna % palet.partikel.length];
