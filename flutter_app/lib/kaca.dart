@@ -212,13 +212,23 @@ class LatarBening extends StatefulWidget {
 
 class _LatarBeningState extends State<LatarBening>
     with WidgetsBindingObserver {
-  /// Posisi siklus animasi, 0..1. Painter mendengarkan ini lewat `repaint`.
+  /// Detik berjalan (tidak dibungkus). Painter mendengarkan ini lewat `repaint`.
   final _waktu = ValueNotifier<double>(0);
+
+  /// Posisi kursor dalam koordinat 0..1, null kalau kursor di luar jendela.
+  final _kursor = ValueNotifier<Offset?>(null);
+
+  /// Ring yang mengikuti kursor dengan easing, juga 0..1.
+  final _ring = ValueNotifier<Offset>(const Offset(0.5, 0.45));
+
   final _stopwatch = Stopwatch();
   Timer? _timer;
   bool _appTerlihat = true;
 
   static const _jedaFrame = Duration(milliseconds: 33); // ~30 fps
+
+  /// Seberapa cepat ring menyusul kursor (per frame 30 fps).
+  static const _kejarRing = 0.07;
 
   @override
   void initState() {
@@ -258,6 +268,15 @@ class _LatarBeningState extends State<LatarBening>
         // Detik berjalan, tanpa dibungkus: partikel butuh waktu yang terus
         // naik supaya geraknya tidak melompat saat siklus latar berulang.
         _waktu.value = _stopwatch.elapsedMilliseconds / 1000.0;
+
+        // Ring menyusul kursor dengan easing. Kalau kursor keluar jendela,
+        // ring pelan-pelan kembali ke tengah.
+        final tujuan = _kursor.value ?? const Offset(0.5, 0.45);
+        final r = _ring.value;
+        _ring.value = Offset(
+          r.dx + (tujuan.dx - r.dx) * _kejarRing,
+          r.dy + (tujuan.dy - r.dy) * _kejarRing,
+        );
       });
     } else if (!gerak && _timer != null) {
       _timer!.cancel();
@@ -271,20 +290,55 @@ class _LatarBeningState extends State<LatarBening>
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _waktu.dispose();
+    _kursor.dispose();
+    _ring.dispose();
     super.dispose();
+  }
+
+  /// Simpan posisi kursor dalam 0..1, supaya painter tidak perlu tahu ukuran
+  /// widget. Dipasang di luar Stack agar tetap menerima hover walau ada
+  /// konten di atas latar.
+  void _perbaruiKursor(Offset lokal) {
+    final ukuran = context.size;
+    if (ukuran == null || ukuran.isEmpty) return;
+    _kursor.value = Offset(
+      lokal.dx / ukuran.width,
+      lokal.dy / ukuran.height,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: RepaintBoundary(
-            child: CustomPaint(painter: _PelukisLatar(_waktu, context.palet)),
-          ),
+    return MouseRegion(
+      onHover: (e) => _perbaruiKursor(e.localPosition),
+      onExit: (_) => _kursor.value = null,
+      child: Listener(
+        onPointerMove: (e) => _perbaruiKursor(e.localPosition),
+        onPointerHover: (e) => _perbaruiKursor(e.localPosition),
+        onPointerCancel: (_) => _kursor.value = null,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: _PelukisLatar(_waktu, context.palet, _ring),
+                ),
+              ),
+            ),
+            Positioned.fill(child: widget.child),
+            // Titik di atas konten, dan tidak menangkap sentuhan/klik.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _PelukisPartikel(_waktu, context.palet, _ring),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        Positioned.fill(child: widget.child),
-      ],
+      ),
     );
   }
 }
@@ -316,10 +370,14 @@ class _Partikel {
 class _PelukisLatar extends CustomPainter {
   // repaint: waktu -> cuma painter ini yang digambar ulang tiap frame,
   // tanpa membangun ulang widget apa pun.
-  _PelukisLatar(this.waktu, this.palet) : super(repaint: waktu);
+  _PelukisLatar(this.waktu, this.palet, this.ring) : super(repaint: waktu);
 
   final ValueListenable<double> waktu;
   final Palet palet;
+
+  /// Pusat ring (0..1). Partikel didorong keluar saat kena ring ini, jadi
+  /// kursor terlihat seperti "bola" kosong yang mengikuti gerak mouse.
+  final ValueListenable<Offset> ring;
 
   /// Satu putaran penuh ayunan bayangan latar, dalam detik.
   static const _periodeLatar = 40.0;
@@ -338,7 +396,7 @@ class _PelukisLatar extends CustomPainter {
 
   static List<_Partikel> _buatTitik() {
     final acak = Random(2026);
-    return List.generate(200, (_) {
+    return List.generate(150, (_) {
       final kedalaman = acak.nextDouble();
       return _Partikel(
         acak.nextDouble(),
@@ -386,15 +444,44 @@ class _PelukisLatar extends CustomPainter {
       );
     }
 
-    // Titik-titik halus di atas latar.
-    //
-    // Tiap titik berayun dengan kecepatan dan fase sendiri (bukan drift
-    // linier yang serempak), plus kedipan alpha pelan. Gerakannya maju-mundur
-    // di sekitar posisi dasar, jadi tidak pernah "habis" dan tidak melompat
-    // saat siklus latar berulang.
+    // Titik-titik digambar oleh lapisan terpisah di atas konten, lihat
+    // _PelukisPartikel. Di sini hanya latar.
+  }
+
+  @override
+  bool shouldRepaint(_PelukisLatar lama) =>
+      lama.waktu != waktu || lama.palet != palet || lama.ring != ring;
+}
+
+/// Lapisan titik di atas konten.
+///
+/// Dipisah dari _PelukisLatar supaya titik-titiknya tetap terlihat walau
+/// tertutup kartu putih. Ditaruh di atas konten seperti di referensi, tapi
+/// dengan alpha rendah supaya tidak mengganggu teks.
+class _PelukisPartikel extends CustomPainter {
+  _PelukisPartikel(this.waktu, this.palet, this.ring) : super(repaint: waktu);
+
+  final ValueListenable<double> waktu;
+  final Palet palet;
+  final ValueListenable<Offset> ring;
+
+  @override
+  void paint(Canvas canvas, Size size) {
     final detik = waktu.value;
     final cat = Paint();
-    for (final p in _titik) {
+
+    // Ring kursor: radius ikut "bernafas" seperti referensi
+    // (0.175 + sin(t)*0.03 + cos(3t)*0.02), lalu partikel yang kena
+    // dinding ring didorong keluar.
+    final dasar = min(size.width, size.height);
+    final pusatRing =
+        Offset(ring.value.dx * size.width, ring.value.dy * size.height);
+    final radiusRing =
+        (0.135 + 0.025 * sin(detik) + 0.015 * cos(detik * 3)) * dasar;
+    final lebarRing = 0.07 * dasar;
+    final dorongRing = 0.090 * dasar;
+
+    for (final p in _PelukisLatar._titik) {
       final jalan = detik * p.kec;
       final x = (p.x +
               0.020 * sin(jalan + p.fase) +
@@ -404,11 +491,26 @@ class _PelukisLatar extends CustomPainter {
               0.016 * cos(jalan * 1.15 + p.fase) +
               0.006 * sin(jalan * 0.6 + p.fase)) %
           1.0;
+
+      var px = x * size.width;
+      var py = y * size.height;
+
+      final vektor = Offset(px - pusatRing.dx, py - pusatRing.dy);
+      final jarak = vektor.distance;
+      final kena =
+          (1 - ((jarak - radiusRing).abs() / lebarRing)).clamp(0.0, 1.0).toDouble();
+      if (kena > 0) {
+        final arah = jarak < 0.01 ? const Offset(1, 0) : vektor / jarak;
+        final geser = (pow(kena, 0.75) * dorongRing).toDouble();
+        px += arah.dx * geser;
+        py += arah.dy * geser;
+      }
+
       final kedip = 0.62 + 0.38 * sin(jalan * 1.7 + p.fase);
       final rona = palet.partikel[p.warna % palet.partikel.length];
-      cat.color = rona.withAlpha((205 * kedip).round().clamp(0, 255));
+      cat.color = rona.withAlpha((95 * kedip).round().clamp(0, 255));
       canvas.drawCircle(
-        Offset(x * size.width, y * size.height),
+        Offset(px, py),
         p.ukuran * (0.7 + p.z * 0.8),
         cat,
       );
@@ -416,8 +518,8 @@ class _PelukisLatar extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_PelukisLatar lama) =>
-      lama.waktu != waktu || lama.palet != palet;
+  bool shouldRepaint(_PelukisPartikel lama) =>
+      lama.waktu != waktu || lama.palet != palet || lama.ring != ring;
 }
 
 /// Kartu kaca putih bening. Dengan [gelap], kartu jadi kaca hitam
