@@ -46,6 +46,7 @@ class Palet extends ThemeExtension<Palet> {
     required this.tepiKaca,
     required this.kacaGelap,
     required this.tepiKacaGelap,
+    required this.partikel,
   });
 
   /// Teks utama dan teks sekunder.
@@ -78,6 +79,10 @@ class Palet extends ThemeExtension<Palet> {
   /// Gradasi kartu kaca gelap (terminal, kartu yang ditonjolkan) dan tepinya.
   final List<Color> kacaGelap, tepiKacaGelap;
 
+  /// Warna titik-titik kecil yang melayang di latar. Diberi alpha saat
+  /// digambar, jadi isi daftar ini sebaiknya warna pekat.
+  final List<Color> partikel;
+
   static const terang = Palet(
     teks: Color(0xFF0A0A0A),
     teksRedup: Color(0x990A0A0A),
@@ -103,6 +108,12 @@ class Palet extends ThemeExtension<Palet> {
     tepiKaca: [Color(0xFFFFFFFF), Color(0x66FFFFFF), Color(0x140A0A0A)],
     kacaGelap: [Color(0xF00A0A0A), Color(0xE61C1C1C)],
     tepiKacaGelap: [Color(0x59FFFFFF), Color(0x0DFFFFFF), Color(0x26FFFFFF)],
+    partikel: [
+      Color(0xFF4B7BEC),
+      Color(0xFFE05656),
+      Color(0xFFE0A030),
+      Color(0xFF3F9E6A),
+    ],
   );
 
   static const gelap = Palet(
@@ -130,6 +141,12 @@ class Palet extends ThemeExtension<Palet> {
     tepiKaca: [Color(0x4DFFFFFF), Color(0x0DFFFFFF), Color(0x40000000)],
     kacaGelap: [Color(0xF5020617), Color(0xEB0F172A)],
     tepiKacaGelap: [Color(0x40FFFFFF), Color(0x0DFFFFFF), Color(0x26FFFFFF)],
+    partikel: [
+      Color(0xFF7FA6FF),
+      Color(0xFFFF8A8A),
+      Color(0xFFFFC96B),
+      Color(0xFF6EE7B7),
+    ],
   );
 
   /// Tema rahasia (hadiah arsip tersembunyi): fosfor hijau ala terminal.
@@ -158,6 +175,12 @@ class Palet extends ThemeExtension<Palet> {
     tepiKaca: [Color(0x664ADE80), Color(0x0D4ADE80), Color(0x40000000)],
     kacaGelap: [Color(0xF5000A04), Color(0xEB03170B)],
     tepiKacaGelap: [Color(0x594ADE80), Color(0x0D4ADE80), Color(0x264ADE80)],
+    partikel: [
+      Color(0xFF4ADE80),
+      Color(0xFF86EFAC),
+      Color(0xFF22C55E),
+      Color(0xFFB7F7C4),
+    ],
   );
 
   @override
@@ -279,6 +302,16 @@ class _Bayangan {
   final double fase;
 }
 
+/// Satu titik kecil di latar: posisi awal (0..1), geseran per siklus,
+/// ukuran dalam piksel logis, indeks warna, dan fase ayunan.
+class _Partikel {
+  const _Partikel(
+      this.x, this.y, this.geserX, this.geserY, this.ukuran, this.warna, this.fase);
+
+  final double x, y, geserX, geserY, ukuran, fase;
+  final int warna;
+}
+
 class _PelukisLatar extends CustomPainter {
   // repaint: waktu -> cuma painter ini yang digambar ulang tiap frame,
   // tanpa membangun ulang widget apa pun.
@@ -294,6 +327,25 @@ class _PelukisLatar extends CustomPainter {
     _Bayangan(0.60, 1.00, 0.14, 0.06, 0.95, 3.4),
     _Bayangan(0.00, 0.85, 0.07, 0.10, 0.60, 4.6),
   ];
+
+  /// Titik latar. Dibuat sekali dengan seed tetap supaya posisinya tidak
+  /// berubah setiap kali widget dibangun ulang.
+  static final List<_Partikel> _titik = _buatTitik();
+
+  static List<_Partikel> _buatTitik() {
+    final acak = Random(2026);
+    return List.generate(130, (_) {
+      return _Partikel(
+        acak.nextDouble(),
+        acak.nextDouble(),
+        (acak.nextDouble() - 0.5) * 0.35,
+        (acak.nextDouble() - 0.5) * 0.20,
+        1.2 + acak.nextDouble() * 2.2,
+        acak.nextInt(4),
+        acak.nextDouble() * 2 * pi,
+      );
+    });
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -326,6 +378,17 @@ class _PelukisLatar extends CustomPainter {
             colors: [warna, warna.withAlpha(0)],
           ).createShader(Rect.fromCircle(center: pusat, radius: jari)),
       );
+    }
+
+    // Titik-titik halus di atas latar. Digeser pelan dan dibungkus ke sisi
+    // seberang saat keluar layar, jadi tidak ada yang hilang.
+    final cat = Paint();
+    for (final p in _titik) {
+      final x = (p.x + p.geserX * waktu.value + sin(t + p.fase) * 0.004) % 1.0;
+      final y = (p.y + p.geserY * waktu.value + cos(t + p.fase) * 0.004) % 1.0;
+      final rona = palet.partikel[p.warna % palet.partikel.length];
+      cat.color = rona.withAlpha(200);
+      canvas.drawCircle(Offset(x * size.width, y * size.height), p.ukuran, cat);
     }
   }
 
