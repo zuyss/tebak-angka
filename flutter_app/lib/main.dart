@@ -259,7 +259,7 @@ class _BerandaState extends State<Beranda> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1280),
@@ -329,14 +329,20 @@ class _BerandaState extends State<Beranda> {
         Text(
           _sapaan(),
           style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
+            fontSize: 32,
+            height: 1.05,
+            letterSpacing: -0.8,
+            fontWeight: FontWeight.w700,
             color: context.palet.teks,
           ),
         ),
+        const SizedBox(height: 2),
         Text(
           context.tr('Mau main apa hari ini?', 'What do you want to play today?'),
-          style: TextStyle(color: context.palet.teksRedup),
+          style: TextStyle(
+            fontSize: 14,
+            color: context.palet.teksRedup,
+          ),
         ),
       ],
       ),
